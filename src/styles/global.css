@@ -947,3 +947,20 @@ input[type="range"]::-moz-range-thumb {
   color: var(--muted);
   line-height: 1.6;
 }
+
+/* Terms rendered inside the app shell (player keeps playing) */
+.legal-inline { max-width: 760px; margin: 0 auto; padding: 8px 0 40px; }
+.legal-inline .legal-back {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+.legal-inline .legal-back:hover { color: var(--accent); }
+@media (max-width: 640px) {
+  .legal-inline { padding: 2px 0 24px; }
+}

@@ -1,0 +1,128 @@
+---
+// Terms copy shared by the standalone /terms page and the in-app terms view.
+// Keeping one source means the player can stay alive while these are read.
+---
+
+<h1>Terms &amp; Conditions</h1>
+<p class="updated">Last updated: November 14, 2026</p>
+
+<p class="legal-note">
+  EchoX is a free hobby project. It comes with no guarantees, no support and no warranty.
+  It exists for fun, not as a serious product or commercial service.
+</p>
+
+<h2>1. What EchoX is</h2>
+<p>
+  EchoX is a free, browser-based music player. It streams full tracks from Audius and
+  30-second previews from Apple's iTunes Search API. EchoX does not host, upload, store or
+  redistribute any music files; playback happens directly from those third-party services.
+</p>
+
+<h2>2. Free, “as is”, no warranty</h2>
+<p>
+  EchoX is provided <strong>“as is”</strong> and <strong>“as available”</strong>, without
+  warranties of any kind, whether express or implied, including merchantability, fitness for a
+  particular purpose, non-infringement, accuracy, or uninterrupted and error-free operation.
+  No promise is made that any song, artist, search result, link or feature will remain
+  available, or that playback will work at any given time.
+</p>
+
+<h2>3. A hobby project, for fun</h2>
+<p>
+  EchoX is a personal side project built for enjoyment and learning. It is not a company, a
+  commercial service or a serious product. There is no service-level agreement, no support
+  commitment, no roadmap and no guarantee of maintenance. Features may change, break or
+  disappear at any time, and the service may be taken offline without notice.
+</p>
+
+<h2>4. Music rights</h2>
+<p>
+  All songs, recordings, artwork and metadata belong to their respective artists, labels and
+  rights holders. EchoX grants you no licence to any music. You may not download, rip, capture
+  or redistribute audio obtained through EchoX, or use it to build a competing catalogue.
+</p>
+
+<h2>5. Third-party services</h2>
+<p>
+  Playback and metadata depend on Audius and Apple iTunes. EchoX is not affiliated with,
+  sponsored by or endorsed by Audius or Apple. Your use of those services is also governed by
+  their own terms and privacy policies.
+</p>
+
+<h2>6. Acceptable use</h2>
+<p>
+  Do not misuse EchoX: no attempts to bypass access controls or region restrictions, no
+  large-scale scraping, no interference with the service, and no use for unlawful purposes.
+</p>
+
+<h2>7. Limitation of liability</h2>
+<p>
+  To the maximum extent permitted by law, EchoX and its author are not liable for any indirect,
+  incidental, special, consequential or punitive damages, or for any loss of data, profits or
+  goodwill, arising from your use of — or inability to use — the service. You use EchoX at your
+  own risk.
+</p>
+
+<h2>8. Changes to these terms</h2>
+<p>
+  These terms may be updated at any time without notice. Continuing to use EchoX after a change
+  means you accept the updated terms.
+</p>
+
+<h2>9. Rights holders</h2>
+<p>
+  EchoX does not store music files. If you believe something is linked or displayed incorrectly,
+  open an issue on the project repository and it will be reviewed and removed where appropriate.
+</p>
+
+<h2>10. APIs and services used</h2>
+<p>
+  For transparency, here is every external API EchoX talks to. All of them are free and
+  public, and all requests are made directly from your browser.
+</p>
+<ul class="api-list">
+  <li>
+    <strong>Audius API v1</strong> —
+    <a href="https://api.audius.co/v1" target="_blank" rel="noopener noreferrer">api.audius.co/v1</a><br />
+    Used for: trending tracks (<code>/tracks/trending</code>), search
+    (<code>/tracks/search</code>), artist catalogues
+    (<code>/users/handle/&#123;handle&#125;/tracks</code>) and full-track audio streaming
+    (<code>/tracks/&#123;id&#125;/stream</code>).<br />
+    Access: read endpoints need no API key; the app identifies itself with
+    <code>app_name=echox</code>. Free tier: 10 requests/second and 500,000 requests/month.
+  </li>
+  <li>
+    <strong>Apple iTunes Search API</strong> —
+    <a href="https://itunes.apple.com/search" target="_blank" rel="noopener noreferrer">itunes.apple.com/search</a>
+    and
+    <a href="https://itunes.apple.com/lookup" target="_blank" rel="noopener noreferrer">itunes.apple.com/lookup</a><br />
+    Used for: 30-second preview clips (<code>previewUrl</code>), artwork
+    (<code>artworkUrl100</code>), track metadata and artist track listings. No key required;
+    the endpoint is public and rate-limited.
+  </li>
+  <li>
+    <strong>Astro</strong> —
+    <a href="https://astro.build" target="_blank" rel="noopener noreferrer">astro.build</a><br />
+    Not an API, but the static site framework EchoX is built with. The whole app ships as
+    plain HTML, CSS and JavaScript.
+  </li>
+</ul>
+<p>
+  No Spotify, YouTube or Apple Music account API is used, no music files are downloaded by
+  EchoX, and no API keys or personal credentials are stored by the site.
+</p>
+
+<h2>11. Thank you</h2>
+<p>
+  Thank you to <strong>Audius</strong> for keeping an open, artist-first catalogue and a free
+  API; to <strong>Apple</strong> for the iTunes Search API and its previews; to every
+  independent artist who uploads music and lets people listen for free; and to the open-source
+  community behind <strong>Astro</strong>.
+</p>
+<p class="thanks">
+  And thank you for listening. Music sounds better when it is shared.
+</p>
+
+<p class="legal-foot">
+  By using EchoX you agree to these terms. If you do not agree, please do not use the site.
+</p>

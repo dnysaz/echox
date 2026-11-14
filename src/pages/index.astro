@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import TermsArticle from '../components/TermsArticle.astro';
 ---
 
 <Layout>
@@ -41,7 +42,7 @@ import Layout from '../layouts/Layout.astro';
 
       <footer class="sidebar-foot">
         Audio &amp; data: Audius, Apple iTunes.<br />
-        <a href="/terms">Terms &amp; conditions</a>
+        <a href="/terms" data-open-terms>Terms &amp; conditions</a>
       </footer>
     </aside>
 
@@ -102,7 +103,7 @@ import Layout from '../layouts/Layout.astro';
           </p>
           <p class="hero-note">
             A free hobby project — no guarantees, just for fun.
-            <a href="/terms">Read the terms</a>.
+            <a href="/terms" data-open-terms>Read the terms</a>.
           </p>
           <div class="chips" id="genre-chips"></div>
         </div>
@@ -143,6 +144,13 @@ import Layout from '../layouts/Layout.astro';
           <div class="status">No liked songs yet. Tap the heart while a song is playing.</div>
         </div>
         <div id="liked-grid"></div>
+      </section>
+
+      <section id="view-terms" class="view" hidden>
+        <div class="legal legal-inline">
+          <button class="legal-back" id="terms-close" type="button">← Back to music</button>
+          <TermsArticle />
+        </div>
       </section>
     </main>
   </div>

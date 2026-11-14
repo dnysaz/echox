@@ -399,6 +399,10 @@ detailLike.addEventListener('click', () => {
 el<HTMLButtonElement>('detail-close').addEventListener('click', closeDetail);
 
 document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && currentView === 'terms') {
+    closeTerms();
+    return;
+  }
   if (event.key === 'Escape' && detailOpen) {
     closeDetail();
     return;
@@ -412,10 +416,15 @@ document.addEventListener('keydown', (event) => {
 
 /* ---------------- Views ---------------- */
 
-const views = ['home', 'search', 'library'] as const;
+const views = ['home', 'search', 'library', 'terms'] as const;
 type View = (typeof views)[number];
 
+let currentView: View = 'home';
+let termsReturn: View = 'home';
+
 function setView(view: View) {
+  currentView = view;
+  document.title = view === 'terms' ? 'Terms & Conditions | EchoX' : 'EchoX | Free online music';
   views.forEach((name) => {
     el<HTMLElement>(`view-${name}`).hidden = name !== view;
   });
@@ -432,7 +441,39 @@ document.querySelectorAll<HTMLElement>('[data-view]').forEach((btn) => {
   btn.addEventListener('click', () => {
     setView(btn.dataset.view as View);
     closeDetail();
+    window.scrollTo({ top: 0 });
   });
+});
+
+/* ---------------- Terms, without interrupting playback ---------------- */
+
+function openTerms() {
+  if (currentView !== 'terms') termsReturn = currentView;
+  setView('terms');
+  closeDetail();
+  window.scrollTo({ top: 0 });
+}
+
+function closeTerms() {
+  setView(termsReturn);
+  window.scrollTo({ top: 0 });
+}
+
+document.querySelectorAll<HTMLAnchorElement>('[data-open-terms]').forEach((link) => {
+  link.addEventListener('click', (event) => {
+    event.preventDefault();
+    openTerms();
+  });
+});
+
+el<HTMLButtonElement>('terms-close').addEventListener('click', closeTerms);
+
+// The logo jumps back to Home in-page instead of reloading, so audio keeps playing.
+document.querySelector<HTMLAnchorElement>('.brand')?.addEventListener('click', (event) => {
+  event.preventDefault();
+  setView('home');
+  closeDetail();
+  window.scrollTo({ top: 0 });
 });
 
 /* ---------------- Home ---------------- */
