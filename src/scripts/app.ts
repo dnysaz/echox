@@ -61,6 +61,11 @@ const genreChips = el<HTMLDivElement>('genre-chips');
 const searchInput = el<HTMLInputElement>('search-input');
 const searchHeading = el<HTMLHeadingElement>('search-heading');
 const searchHint = el<HTMLParagraphElement>('search-hint');
+const audiusHead = el<HTMLDivElement>('audius-head');
+const deezerHead = el<HTMLDivElement>('deezer-head');
+const itunesHead = el<HTMLDivElement>('itunes-head');
+const podcastHead = el<HTMLDivElement>('podcast-head');
+const radioHead = el<HTMLDivElement>('radio-head');
 const audiusResults = el<HTMLDivElement>('audius-results');
 const deezerResults = el<HTMLDivElement>('deezer-results');
 const itunesResults = el<HTMLDivElement>('itunes-results');
@@ -744,6 +749,47 @@ type View = (typeof views)[number];
 let currentView: View = 'home';
 let termsReturn: View = 'home';
 
+// Searching from Podcasts or Radio limits the results to that source; from
+// anywhere else every source is searched, songs first.
+type SearchScope = 'all' | 'podcast' | 'radio';
+let searchScope: SearchScope = 'all';
+
+function scopeFromView(view: View): SearchScope {
+  if (view === 'podcasts') return 'podcast';
+  if (view === 'radio') return 'radio';
+  return 'all';
+}
+
+function applySearchScope() {
+  const songs = searchScope === 'all';
+  const podcasts = searchScope === 'all' || searchScope === 'podcast';
+  const radio = searchScope === 'all' || searchScope === 'radio';
+
+  audiusHead.hidden = !songs;
+  deezerHead.hidden = !songs;
+  itunesHead.hidden = !songs;
+  audiusResults.hidden = !songs;
+  deezerResults.hidden = !songs;
+  itunesResults.hidden = !songs;
+  podcastHead.hidden = !podcasts;
+  podcastResults.hidden = !podcasts;
+  radioHead.hidden = !radio;
+  radioResults.hidden = !radio;
+
+  searchInput.placeholder =
+    searchScope === 'podcast'
+      ? 'Search podcast episodes…'
+      : searchScope === 'radio'
+        ? 'Search live radio…'
+        : 'Search songs, artists, genres…';
+  searchHint.textContent =
+    searchScope === 'podcast'
+      ? 'Type at least 2 characters to search podcast episodes.'
+      : searchScope === 'radio'
+        ? 'Type at least 2 characters to search live radio stations.'
+        : 'Type at least 2 characters to search full tracks, Deezer and iTunes previews, podcast episodes and live radio.';
+}
+
 // On mobile the top bar shows the EchoX title plus a magnifier; the search
 // field only takes over the bar once the magnifier (or Search tab) is tapped.
 function setSearchOpen(open: boolean) {
@@ -778,6 +824,37 @@ function setView(view: View, nav?: string) {
   }
 }
 
+// The magnifier in the top bar opens the dedicated search page (the one the
+// old bottom-navigation Search tab used to show) instead of a bare field.
+function openSearchPage() {
+  const nextScope = currentView === 'search' ? searchScope : scopeFromView(currentView);
+  const scopeChanged = nextScope !== searchScope;
+  searchScope = nextScope;
+  applySearchScope();
+  setView('search');
+  setSearchOpen(true);
+
+  // Coming from another view can change the sources; refresh the old query
+  // instead of leaving results from the previous scope on screen.
+  const query = searchInput.value.trim();
+  if (scopeChanged && query.length >= 2) {
+    void runSearch(query);
+    return;
+  }
+  if (scopeChanged) {
+    searchHeading.textContent =
+      searchScope === 'podcast'
+        ? 'Search podcasts'
+        : searchScope === 'radio'
+          ? 'Search live radio'
+          : 'Search results';
+    searchHint.hidden = query.length >= 2;
+    [audiusResults, deezerResults, itunesResults, podcastResults, radioResults].forEach(
+      (container) => (container.innerHTML = '')
+    );
+  }
+}
+
 function scrollToLibrarySection(section: string) {
   const head = document.getElementById(`${section}-head`);
   if (head && !head.hidden) {
@@ -790,17 +867,20 @@ function scrollToLibrarySection(section: string) {
 document.querySelectorAll<HTMLElement>('[data-view]').forEach((btn) => {
   btn.addEventListener('click', () => {
     const view = btn.dataset.view as View;
-    setView(view, btn.dataset.nav);
-    if (view === 'search') setSearchOpen(true);
-    if (view === 'podcasts') void loadPodcasts();
-    if (view === 'radio') void loadRadio();
+    if (view === 'search') {
+      openSearchPage();
+    } else {
+      setView(view, btn.dataset.nav);
+      if (view === 'podcasts') void loadPodcasts();
+      if (view === 'radio') void loadRadio();
+    }
     closeDetail();
     if (btn.dataset.section) scrollToLibrarySection(btn.dataset.section);
     else window.scrollTo({ top: 0 });
   });
 });
 
-searchToggle.addEventListener('click', () => setSearchOpen(true));
+searchToggle.addEventListener('click', openSearchPage);
 searchCancel.addEventListener('click', () => setSearchOpen(false));
 
 /* ---------------- Terms, without interrupting playback ---------------- */
@@ -1034,31 +1114,64 @@ function renderGenreChips(tracks: Track[]) {
 
 async function runSearch(rawQuery: string) {
   const query = rawQuery.trim();
+
+  // Starting a search from another view inherits that view's sources.
+  if (currentView !== 'search') {
+    searchScope = scopeFromView(currentView);
+    applySearchScope();
+  }
+
   if (query.length < 2) {
-    setView('home');
+    setView('search');
+    searchHint.hidden = false;
+    searchHeading.textContent =
+      searchScope === 'podcast'
+        ? 'Search podcasts'
+        : searchScope === 'radio'
+          ? 'Search live radio'
+          : 'Search results';
+    [audiusResults, deezerResults, itunesResults, podcastResults, radioResults].forEach(
+      (container) => (container.innerHTML = '')
+    );
     return;
   }
 
   setView('search');
   closeDetail();
   searchHint.hidden = true;
-  searchHeading.textContent = `Results for “${query}”`;
-  const containers = [audiusResults, deezerResults, itunesResults, podcastResults, radioResults];
-  containers.forEach((container) => (container.innerHTML = skeletonGrid()));
+  const label =
+    searchScope === 'podcast' ? 'Podcast results' : searchScope === 'radio' ? 'Radio results' : 'Results';
+  searchHeading.textContent = `${label} for “${query}”`;
+
+  const wantSongs = searchScope === 'all';
+  const wantPodcasts = searchScope !== 'radio';
+  const wantRadio = searchScope !== 'podcast';
+
+  if (wantSongs) {
+    [audiusResults, deezerResults, itunesResults].forEach((container) => (container.innerHTML = skeletonGrid()));
+  }
+  if (wantPodcasts) podcastResults.innerHTML = skeletonGrid();
+  if (wantRadio) radioResults.innerHTML = skeletonGrid();
 
   const [audius, deezer, itunes, podcasts, radio] = await Promise.allSettled([
-    searchAudius(query),
-    searchDeezer(query),
-    searchItunes(query),
-    searchPodcasts(query),
-    searchRadio(query),
+    wantSongs ? searchAudius(query) : Promise.resolve<Track[]>([]),
+    wantSongs ? searchDeezer(query) : Promise.resolve<Track[]>([]),
+    wantSongs ? searchItunes(query) : Promise.resolve<Track[]>([]),
+    wantPodcasts ? searchPodcasts(query) : Promise.resolve<Track[]>([]),
+    wantRadio ? searchRadio(query) : Promise.resolve<Track[]>([]),
   ]);
 
-  renderResults(audius, audiusResults, 'No full tracks matched on Audius.', 'Audius search failed. Please try again.');
-  renderResults(deezer, deezerResults, 'No previews matched on Deezer.', 'Deezer search failed. Please try again.');
-  renderResults(itunes, itunesResults, 'No previews matched on iTunes.', 'iTunes search failed. Please try again.');
-  renderResults(podcasts, podcastResults, 'No podcast episodes matched.', 'Podcast search failed. Please try again.');
-  renderResults(radio, radioResults, 'No live radio stations matched.', 'Radio search failed. Please try again.');
+  if (wantSongs) {
+    renderResults(audius, audiusResults, 'No full tracks matched on Audius.', 'Audius search failed. Please try again.');
+    renderResults(deezer, deezerResults, 'No previews matched on Deezer.', 'Deezer search failed. Please try again.');
+    renderResults(itunes, itunesResults, 'No previews matched on iTunes.', 'iTunes search failed. Please try again.');
+  }
+  if (wantPodcasts) {
+    renderResults(podcasts, podcastResults, 'No podcast episodes matched.', 'Podcast search failed. Please try again.');
+  }
+  if (wantRadio) {
+    renderResults(radio, radioResults, 'No live radio stations matched.', 'Radio search failed. Please try again.');
+  }
 }
 
 function renderResults(

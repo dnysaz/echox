@@ -10,7 +10,7 @@
 
 - **Home rows** — play again, trending, podcast series and live radio, each on a single swipeable row so the page stays short.
 - **Trending** — a live selection of trending tracks from Audius when the page loads.
-- **Search** — queries Audius (full tracks), Deezer and iTunes (previews), Apple Podcasts and Radio Browser in parallel, each in its own section.
+- **Search** — the magnifier opens a full search page. From Home it queries Audius (full tracks), Deezer and iTunes (previews), Apple Podcasts and Radio Browser in parallel, songs first; searching from the Podcasts or Radio page only searches that source.
 - **Artist view** — clicking any card expands a full-width panel with the artwork, and lists everything else available from that artist.
 - **Playback** — a persistent player bar with play/pause, previous/next, seek and volume, plus the queue built from the list you are looking at.
 - **Library on this device** — play again, most played, recently played history and liked songs, all stored in `localStorage`.
