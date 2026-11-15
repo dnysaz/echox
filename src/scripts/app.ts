@@ -419,6 +419,7 @@ function syncPlayingCards() {
 async function openDetail(track: Track) {
   detailOpen = true;
   detail.hidden = false;
+  syncVibe();
   renderDetailHead(track);
   detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -498,6 +499,12 @@ function closeDetail() {
   detailOpen = false;
   detail.hidden = true;
   detailKey = null;
+  syncVibe();
+}
+
+// The panel background only moves while audio is actually running.
+function syncVibe() {
+  detail.classList.toggle('is-playing', detailOpen && !audio.paused);
 }
 
 // Reopen the artist list the current song was started from (e.g. after
@@ -592,6 +599,7 @@ function step(delta: number) {
 
 audio.addEventListener('play', () => {
   savePlayback(true);
+  syncVibe();
   playBtn.innerHTML = pauseIcon;
   playBtn.setAttribute('aria-label', 'Pause');
   if (detailOpen) {
@@ -603,6 +611,7 @@ audio.addEventListener('play', () => {
 
 audio.addEventListener('pause', () => {
   savePlayback(true);
+  syncVibe();
   playBtn.innerHTML = playIcon;
   playBtn.setAttribute('aria-label', 'Play');
   if (detailOpen) {
