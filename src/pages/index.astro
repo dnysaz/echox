@@ -7,47 +7,100 @@ import TermsArticle from '../components/TermsArticle.astro';
   <div class="app">
     <aside class="sidebar">
       <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">♪</span>
-        <span class="brand-text">EchoX</span>
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5.5 5.5v13L14.5 12z" />
+            <rect x="16" y="5.5" width="2.5" height="13" rx="1.25" />
+          </svg>
+        </span>
+        <span class="brand-text">echo<span class="brand-x">X</span></span>
       </a>
 
       <nav class="nav" aria-label="Main navigation">
-        <button type="button" class="nav-item active" data-view="home">
+        <button type="button" class="nav-item active" data-view="home" data-nav="home">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 10.5 12 3l9 7.5" /><path d="M5.5 9.5V21h13V9.5" />
           </svg>
           <span class="nav-label">Home</span>
         </button>
-        <button type="button" class="nav-item" data-view="search">
+        <button type="button" class="nav-item nav-search" data-view="search" data-nav="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" />
           </svg>
           <span class="nav-label">Search</span>
         </button>
-        <button type="button" class="nav-item" data-view="library">
+        <button type="button" class="nav-item" data-view="library" data-nav="liked">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 7a4 4 0 0 1 7 3.8C19 15.6 12 20 12 20Z" />
           </svg>
           <span class="nav-label">Liked</span>
+        </button>
+
+        <button
+          type="button"
+          class="nav-item nav-extra"
+          data-view="library"
+          data-nav="play-again"
+          data-section="play-again"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 12a8 8 0 1 0 3.2-6.4" /><path d="M4 4v5h5" />
+          </svg>
+          <span class="nav-label">Play again</span>
+        </button>
+        <button
+          type="button"
+          class="nav-item nav-extra"
+          data-view="library"
+          data-nav="most-played"
+          data-section="most-played"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 19V10" /><path d="M10 19V5" /><path d="M16 19v-6" /><path d="M22 19H2" />
+          </svg>
+          <span class="nav-label">Most played</span>
+        </button>
+        <button
+          type="button"
+          class="nav-item"
+          data-view="podcasts"
+          data-nav="podcasts"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3" />
+          </svg>
+          <span class="nav-label">Podcasts</span>
+        </button>
+        <button
+          type="button"
+          class="nav-item"
+          data-view="radio"
+          data-nav="radio"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="2" /><path d="M7.8 7.8a6 6 0 0 0 0 8.4" /><path d="M16.2 7.8a6 6 0 0 1 0 8.4" /><path d="M5 5a10 10 0 0 0 0 14" /><path d="M19 5a10 10 0 0 1 0 14" />
+          </svg>
+          <span class="nav-label">Radio</span>
         </button>
       </nav>
 
       <div class="sidebar-section">
         <h3>Audio sources</h3>
         <p>
-          Full tracks come from <strong>Audius</strong>, previews from <strong>iTunes</strong>.
-          No music files are hosted here.
+          Full tracks from <strong>Audius</strong>, previews from <strong>Deezer</strong> and
+          <strong>iTunes</strong>, podcasts and live radio. No music files are hosted here.
         </p>
       </div>
 
       <footer class="sidebar-foot">
-        Audio &amp; data: Audius, Apple iTunes.<br />
+        Audio &amp; data: Audius, Deezer, Apple, Radio Browser.<br />
         <a href="/terms" data-open-terms>Terms &amp; conditions</a>
       </footer>
     </aside>
 
     <main class="main">
       <header class="topbar">
+        <a class="mobile-brand" href="/">echo<span class="brand-x">X</span></a>
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" />
@@ -60,6 +113,20 @@ import TermsArticle from '../components/TermsArticle.astro';
             aria-label="Search music"
           />
         </label>
+        <button
+          class="search-toggle"
+          id="search-toggle"
+          type="button"
+          aria-label="Open search"
+          aria-expanded="false"
+          aria-controls="search-input"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" />
+          </svg>
+          <span class="search-toggle-label">Search</span>
+        </button>
+        <button class="search-cancel" id="search-cancel" type="button" aria-label="Close search">×</button>
         <span class="pill">beta</span>
       </header>
 
@@ -96,10 +163,10 @@ import TermsArticle from '../components/TermsArticle.astro';
       <section id="view-home" class="view">
         <div class="hero">
           <p class="eyebrow">Free · legal · no subscription</p>
-          <h1>Free music,<br />no strings attached.</h1>
+          <h1>Free Music, Radio<br />and Podcast Stream,<br />only for fun!</h1>
           <p class="sub">
-            Stream full tracks from Audius and 30-second previews from iTunes.
-            Every song plays straight from its official source.
+            Full tracks from Audius, previews from Deezer and iTunes, podcasts and live
+            radio. Every song plays straight from its official source.
           </p>
           <p class="hero-note">
             A free hobby project — no guarantees, just for fun.
@@ -108,17 +175,36 @@ import TermsArticle from '../components/TermsArticle.astro';
           <div class="chips" id="genre-chips"></div>
         </div>
 
+        <div class="section-head" id="home-play-again-head" hidden>
+          <h2>Play again</h2>
+          <span>recent</span>
+        </div>
+        <div class="home-row" id="home-play-again" hidden></div>
+
         <div class="section-head">
           <h2>Trending now</h2>
           <span>Audius</span>
         </div>
-        <div id="trending-grid"></div>
+        <div class="home-row" id="trending-grid"></div>
+
+        <div class="section-head" id="home-podcasts-head" hidden>
+          <h2>Podcast series</h2>
+          <span>Apple Podcasts</span>
+        </div>
+        <div class="home-row" id="home-podcasts" hidden></div>
+
+        <div class="section-head" id="home-radio-head" hidden>
+          <h2>Live radio</h2>
+          <span>Radio Browser</span>
+        </div>
+        <div class="home-row" id="home-radio" hidden></div>
       </section>
 
       <section id="view-search" class="view" hidden>
         <h2 id="search-heading">Search results</h2>
         <p class="search-hint" id="search-hint">
-          Type at least 2 characters to search full tracks on Audius and previews on iTunes.
+          Type at least 2 characters to search full tracks, Deezer and iTunes previews,
+          podcast episodes and live radio.
         </p>
 
         <div class="section-head">
@@ -128,22 +214,80 @@ import TermsArticle from '../components/TermsArticle.astro';
         <div id="audius-results"></div>
 
         <div class="section-head">
+          <h2>30-second previews · Deezer</h2>
+          <span>Deezer</span>
+        </div>
+        <div id="deezer-results"></div>
+
+        <div class="section-head">
           <h2>30-second previews · iTunes</h2>
           <span>Apple Music</span>
         </div>
         <div id="itunes-results"></div>
+
+        <div class="section-head">
+          <h2>Podcast episodes</h2>
+          <span>Apple Podcasts</span>
+        </div>
+        <div id="podcast-results"></div>
+
+        <div class="section-head">
+          <h2>Live radio</h2>
+          <span>Radio Browser</span>
+        </div>
+        <div id="radio-results"></div>
       </section>
 
       <section id="view-library" class="view" hidden>
-        <h2>Your liked songs</h2>
+        <h2>Your library</h2>
+
+        <div class="section-head" id="play-again-head">
+          <h2>Play again</h2>
+          <span>recent</span>
+        </div>
+        <div id="play-again-grid"></div>
+
+        <div class="section-head" id="most-played-head">
+          <h2>Most played</h2>
+          <span>on this device</span>
+        </div>
+        <div id="most-played-grid"></div>
+
+        <div class="section-head" id="history-head">
+          <h2>Recently played</h2>
+          <span>history</span>
+        </div>
+        <div class="tracklist" id="history-list"></div>
+
         <div class="section-head">
-          <h2>Saved on this device</h2>
-          <span>localStorage</span>
+          <h2>Liked songs</h2>
+          <span>saved on this device</span>
         </div>
         <div id="liked-status">
           <div class="status">No liked songs yet. Tap the heart while a song is playing.</div>
         </div>
         <div id="liked-grid"></div>
+      </section>
+
+      <section id="view-podcasts" class="view" hidden>
+        <h2 id="podcasts-heading">Podcasts</h2>
+        <button class="text-back" id="podcasts-back" type="button" hidden>← All shows</button>
+        <p class="search-hint" id="podcasts-hint"></p>
+        <div id="podcasts-grid"></div>
+      </section>
+
+      <section id="view-radio" class="view" hidden>
+        <h2>Live radio</h2>
+        <p class="search-hint">
+          Live stations from Radio Browser. Use the search field for a station name or genre,
+          or tap any station below to start listening.
+        </p>
+        <div class="section-head">
+          <h2>Top stations</h2>
+          <span>live</span>
+        </div>
+        <div id="radio-grid"></div>
+        <button class="load-more" id="radio-more" type="button" hidden>Load more stations</button>
       </section>
 
       <section id="view-terms" class="view" hidden>
@@ -157,12 +301,14 @@ import TermsArticle from '../components/TermsArticle.astro';
 
   <div class="player disabled" id="player">
     <div class="now">
-      <div class="now-art" id="now-art"><span aria-hidden="true">♪</span></div>
-      <div class="now-meta">
-        <div class="now-title" id="now-title">Nothing playing</div>
-        <div class="now-artist" id="now-artist">Pick a song to start</div>
-        <div class="now-src" id="now-src"></div>
-      </div>
+      <button class="now-open" id="now-open" type="button" aria-label="Open the list this song is playing from" disabled>
+        <span class="now-art" id="now-art"><span aria-hidden="true">♪</span></span>
+        <span class="now-meta">
+          <span class="now-title" id="now-title">Nothing playing</span>
+          <span class="now-artist" id="now-artist">Pick a song to start</span>
+          <span class="now-src" id="now-src"></span>
+        </span>
+      </button>
       <button class="icon-btn" id="like-btn" type="button" aria-label="Like song" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 7a4 4 0 0 1 7 3.8C19 15.6 12 20 12 20Z" />

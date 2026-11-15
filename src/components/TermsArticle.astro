@@ -101,6 +101,28 @@
     the endpoint is public and rate-limited.
   </li>
   <li>
+    <strong>Deezer public API</strong> —
+    <a href="https://api.deezer.com/search" target="_blank" rel="noopener noreferrer">api.deezer.com/search</a><br />
+    Used for: a second world-wide catalogue of 30-second preview clips
+    (<code>preview</code>), artwork and artist top tracks
+    (<code>/artist/&#123;id&#125;/top</code>). No key required. Deezer does not send CORS
+    headers, so the app reads this API through JSONP.
+  </li>
+  <li>
+    <strong>Apple Podcasts (iTunes Search API)</strong> —
+    <a href="https://itunes.apple.com/search" target="_blank" rel="noopener noreferrer">itunes.apple.com/search</a><br />
+    Used for: podcast episodes (<code>media=podcast&amp;entity=podcastEpisode</code>),
+    episode artwork and audio (<code>previewUrl</code>), plus more episodes from the same show.
+    No key required.
+  </li>
+  <li>
+    <strong>Radio Browser API</strong> —
+    <a href="https://api.radio-browser.info" target="_blank" rel="noopener noreferrer">api.radio-browser.info</a><br />
+    Used for: live online radio stations, their stream URLs and logos. A free, community-run,
+    keyless directory. Only streams served over HTTPS are shown, and the app links to the
+    broadcaster's own stream.
+  </li>
+  <li>
     <strong>Astro</strong> —
     <a href="https://astro.build" target="_blank" rel="noopener noreferrer">astro.build</a><br />
     Not an API, but the static site framework EchoX is built with. The whole app ships as
@@ -109,15 +131,19 @@
 </ul>
 <p>
   No Spotify, YouTube or Apple Music account API is used, no music files are downloaded by
-  EchoX, and no API keys or personal credentials are stored by the site.
+  EchoX, and no API keys or personal credentials are stored by the site. Deezer previews and
+  podcast episodes are streamed exactly as their services provide them; live radio is played
+  straight from the broadcaster's stream.
 </p>
 
 <h2>11. Thank you</h2>
 <p>
   Thank you to <strong>Audius</strong> for keeping an open, artist-first catalogue and a free
-  API; to <strong>Apple</strong> for the iTunes Search API and its previews; to every
-  independent artist who uploads music and lets people listen for free; and to the open-source
-  community behind <strong>Astro</strong>.
+  API; to <strong>Apple</strong> for the iTunes Search and Podcasts APIs; to
+  <strong>Deezer</strong> for a second global catalogue of previews; to <strong>Radio
+  Browser</strong> and every broadcaster who streams openly; to every independent artist who
+  uploads music and lets people listen for free; and to the open-source community behind
+  <strong>Astro</strong>.
 </p>
 <p class="thanks">
   And thank you for listening. Music sounds better when it is shared.
