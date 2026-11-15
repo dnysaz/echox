@@ -337,7 +337,7 @@ img { display: block; }
   box-shadow: 0 8px 18px rgba(0,0,0,.4);
 }
 .card:hover .card-play, .card.playing .card-play { opacity: 1; translate: 0 0; }
-.card-play svg { width: 17px; height: 17px; margin-left: 1px; }
+.card-play svg { display: block; width: 17px; height: 17px; }
 
 .badge-src {
   position: absolute;
@@ -538,6 +538,7 @@ img { display: block; }
   height: 44px;
   display: grid;
   place-items: center;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: var(--accent);
@@ -546,7 +547,7 @@ img { display: block; }
   transition: filter .15s, transform .15s;
 }
 .detail-play:hover { filter: brightness(1.08); transform: scale(1.04); }
-.detail-play svg { width: 19px; height: 19px; }
+.detail-play svg { display: block; width: 19px; height: 19px; }
 
 .detail-close {
   position: absolute;
@@ -754,6 +755,7 @@ img { display: block; }
   height: 40px;
   display: grid;
   place-items: center;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: #fff;
@@ -763,7 +765,7 @@ img { display: block; }
 }
 .play-btn:hover { transform: scale(1.05); background: var(--accent); }
 .play-btn:active { transform: scale(.97); }
-.play-btn svg { width: 18px; height: 18px; }
+.play-btn svg { display: block; width: 18px; height: 18px; }
 
 .progress-row {
   display: flex;
@@ -810,17 +812,37 @@ input[type="range"]::-moz-range-thumb {
 .player-right input[type="range"] { max-width: 110px; }
 
 @media (max-width: 1080px) {
-  .player { grid-template-columns: minmax(160px, 1fr) minmax(280px, 1.8fr) auto; gap: 14px; }
+  /* Equal side columns keep the controls (and the play button) centred. */
+  .player {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 2fr) minmax(0, 1fr);
+    gap: 14px;
+  }
   .player-right input[type="range"] { display: none; }
 }
 
 @media (max-width: 900px) {
-  :root { --sidebar: 74px; }
+  :root { --sidebar: 74px; --player: 122px; }
   .sidebar { align-items: center; padding: 18px 8px; }
   .brand { padding: 0; justify-content: center; }
   .brand-text, .nav-label, .sidebar-section, .sidebar-foot { display: none; }
   .nav-item { justify-content: center; padding: 11px; }
   .main { padding: 0 20px 32px; }
+
+  /* Two-row player so the controls stay centred on tablets too. */
+  .player {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    height: var(--player);
+    padding: 8px 18px;
+    gap: 4px 10px;
+  }
+  .now { grid-column: 1; }
+  .now-art { width: 46px; height: 46px; border-radius: 8px; }
+  .now-src { display: none; }
+  .player-center { grid-column: 1 / -1; grid-row: 2; gap: 3px; }
+  .player-right { grid-column: 2; grid-row: 1; }
+  .play-btn { width: 44px; height: 44px; }
+  .controls { gap: 14px; }
 }
 
 @media (hover: none) {
@@ -990,7 +1012,7 @@ input[type="range"]::-moz-range-thumb {
   .icon-btn { width: 38px; height: 38px; }
   .controls { gap: 14px; }
   .play-btn { width: 44px; height: 44px; }
-  .play-btn svg { width: 20px; height: 20px; }
+  .play-btn svg { display: block; width: 20px; height: 20px; }
   .progress-row span { display: none; }
   input[type="range"] { height: 5px; }
 
