@@ -37,6 +37,7 @@ const nowArtist = el<HTMLDivElement>('now-artist');
 const nowSrc = el<HTMLDivElement>('now-src');
 const playBtn = el<HTMLButtonElement>('play-btn');
 const likeBtn = el<HTMLButtonElement>('like-btn');
+const fullBtn = el<HTMLButtonElement>('full-btn');
 const seek = el<HTMLInputElement>('seek');
 const cur = el<HTMLSpanElement>('cur');
 const dur = el<HTMLSpanElement>('dur');
@@ -55,6 +56,28 @@ const detailCount = el<HTMLSpanElement>('detail-count');
 const detailArtistName = el<HTMLSpanElement>('detail-artist-name');
 const detailListPrefix = el<HTMLSpanElement>('detail-list-prefix');
 const nowOpen = el<HTMLButtonElement>('now-open');
+
+const np = el<HTMLElement>('np');
+const npAmbient = el<HTMLDivElement>('np-ambient');
+const npArt = el<HTMLDivElement>('np-art');
+const npTitle = el<HTMLHeadingElement>('np-title');
+const npArtist = el<HTMLParagraphElement>('np-artist');
+const npSource = el<HTMLSpanElement>('np-source');
+const npDesc = el<HTMLParagraphElement>('np-desc');
+const npInfo = el<HTMLDListElement>('np-info');
+const npFacts = el<HTMLElement>('np-facts');
+const npFactsTitle = el<HTMLHeadingElement>('np-facts-title');
+const npLink = el<HTMLAnchorElement>('np-link');
+const npLike = el<HTMLButtonElement>('np-like');
+const npPlay = el<HTMLButtonElement>('np-play');
+const npSeek = el<HTMLInputElement>('np-seek');
+const npCur = el<HTMLSpanElement>('np-cur');
+const npDur = el<HTMLSpanElement>('np-dur');
+const npProgress = el<HTMLElement>('np-progress');
+const npDetail = el<HTMLButtonElement>('np-detail');
+const npClose = el<HTMLButtonElement>('np-close');
+const npPrev = el<HTMLButtonElement>('np-prev');
+const npNext = el<HTMLButtonElement>('np-next');
 
 const trendingGrid = el<HTMLDivElement>('trending-grid');
 const genreChips = el<HTMLDivElement>('genre-chips');
@@ -507,6 +530,67 @@ function syncVibe() {
   detail.classList.toggle('is-playing', detailOpen && !audio.paused);
 }
 
+/* ---------------- Full-screen now playing ---------------- */
+
+function renderNowPlaying(track: Track) {
+  np.classList.toggle('is-live', track.live === true);
+  npArt.innerHTML = coverMarkup(track, 'lg');
+  npAmbient.style.backgroundImage = track.artwork ? `url(${JSON.stringify(track.artwork)})` : 'none';
+  npTitle.textContent = track.title;
+  npArtist.textContent = track.artist;
+  npSource.textContent = track.live ? `${sourceMeta(track)} · on air` : sourceMeta(track);
+  npDesc.textContent = track.description ?? '';
+  npDesc.hidden = !track.description;
+  npLike.disabled = false;
+  npLike.classList.toggle('liked', liked.has(track.id));
+  npDetail.textContent = track.live ? 'More live stations in this country' : 'More from this artist';
+  npProgress.hidden = track.live === true;
+  npCur.textContent = '0:00';
+  npDur.textContent = track.live ? 'LIVE' : formatTime(track.duration);
+  paintRange(npSeek, 0);
+  npLink.hidden = !track.link;
+  if (track.link) {
+    npLink.href = track.link;
+    npLink.textContent = `${track.linkLabel ?? 'Open source'} ↗`;
+  }
+
+  const facts = track.info ?? [];
+  npFacts.hidden = facts.length === 0;
+  npFactsTitle.textContent = track.live
+    ? 'Station details'
+    : track.source === 'podcast'
+      ? 'Episode details'
+      : 'Track details';
+  npInfo.innerHTML = facts
+    .map(
+      (fact) =>
+        `<div class="np-fact"><dt>${escapeHtml(fact.label)}</dt><dd>${escapeHtml(fact.value)}</dd></div>`
+    )
+    .join('');
+
+  syncNowPlaying();
+}
+
+function syncNowPlaying() {
+  const playing = !audio.paused;
+  npPlay.innerHTML = playing ? pauseIcon : playIcon;
+  npPlay.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+}
+
+function openNowPlaying() {
+  if (!current) return;
+  renderNowPlaying(current);
+  np.hidden = false;
+  document.body.classList.add('np-open');
+  npClose.focus({ preventScroll: true });
+}
+
+function closeNowPlaying() {
+  if (np.hidden) return;
+  np.hidden = true;
+  document.body.classList.remove('np-open');
+}
+
 // Reopen the artist list the current song was started from (e.g. after
 // switching to another menu), without reloading or interrupting playback.
 function showPlayingList() {
@@ -536,6 +620,7 @@ function showPlayingList() {
 }
 
 function onTrackChanged(track: Track) {
+  if (!np.hidden) renderNowPlaying(track);
   if (!detailOpen) return;
   renderDetailHead(track);
   if (artistKey(track) !== detailKey) {
@@ -563,6 +648,7 @@ function loadTrack(track: Track, autoplay: boolean) {
   nowArt.innerHTML = coverMarkup(track, 'md');
   nowOpen.disabled = false;
   likeBtn.disabled = false;
+  fullBtn.disabled = false;
   likeBtn.classList.toggle('liked', liked.has(track.id));
   const live = track.live === true;
   cur.textContent = live ? '' : '0:00';
@@ -600,6 +686,7 @@ function step(delta: number) {
 audio.addEventListener('play', () => {
   savePlayback(true);
   syncVibe();
+  syncNowPlaying();
   playBtn.innerHTML = pauseIcon;
   playBtn.setAttribute('aria-label', 'Pause');
   if (detailOpen) {
@@ -612,6 +699,7 @@ audio.addEventListener('play', () => {
 audio.addEventListener('pause', () => {
   savePlayback(true);
   syncVibe();
+  syncNowPlaying();
   playBtn.innerHTML = playIcon;
   playBtn.setAttribute('aria-label', 'Play');
   if (detailOpen) {
@@ -623,6 +711,7 @@ audio.addEventListener('pause', () => {
 
 audio.addEventListener('loadedmetadata', () => {
   dur.textContent = current?.live ? 'LIVE' : formatTime(audio.duration);
+  if (!np.hidden) npDur.textContent = current?.live ? 'LIVE' : formatTime(audio.duration);
   audio.volume = Number(volume.value);
 });
 
@@ -638,6 +727,14 @@ audio.addEventListener('timeupdate', () => {
   if (total > 0) {
     seek.value = String(Math.round((audio.currentTime / total) * 1000));
     paintRange(seek, audio.currentTime / total);
+  }
+  if (!np.hidden) {
+    npCur.textContent = formatTime(audio.currentTime);
+    if (total > 0) {
+      const ratio = audio.currentTime / total;
+      npSeek.value = String(Math.round(ratio * 1000));
+      paintRange(npSeek, ratio);
+    }
   }
 });
 
@@ -655,7 +752,14 @@ audio.addEventListener('error', () => {
 
 playBtn.addEventListener('click', togglePlay);
 detailPlay.addEventListener('click', togglePlay);
-nowOpen.addEventListener('click', showPlayingList);
+nowOpen.addEventListener('click', (event) => {
+  // The cover opens the full-screen player; the title still opens the artist list.
+  if ((event.target as HTMLElement).closest('.now-art')) {
+    openNowPlaying();
+    return;
+  }
+  showPlayingList();
+});
 
 el<HTMLButtonElement>('next-btn').addEventListener('click', () => step(1));
 el<HTMLButtonElement>('prev-btn').addEventListener('click', () => {
@@ -718,7 +822,9 @@ function toggleLike(track: Track, buttons: HTMLButtonElement[]) {
   if (liked.has(track.id)) liked.delete(track.id);
   else liked.set(track.id, track);
   saveLiked();
-  buttons.forEach((btn) => btn.classList.toggle('liked', liked.has(track.id)));
+  const isLiked = liked.has(track.id);
+  buttons.forEach((btn) => btn.classList.toggle('liked', isLiked));
+  npLike.classList.toggle('liked', isLiked);
   if (currentView === 'library') renderLibrary();
 }
 
@@ -732,9 +838,45 @@ detailLike.addEventListener('click', () => {
   toggleLike(current, [likeBtn, detailLike]);
 });
 
+npLike.addEventListener('click', () => {
+  if (!current) return;
+  toggleLike(current, [likeBtn, detailLike]);
+});
+
+fullBtn.addEventListener('click', openNowPlaying);
+npClose.addEventListener('click', closeNowPlaying);
+npPlay.addEventListener('click', togglePlay);
+npDetail.addEventListener('click', () => {
+  closeNowPlaying();
+  showPlayingList();
+});
+
+npSeek.addEventListener('input', () => {
+  if (current?.live) return;
+  const total = audio.duration || 0;
+  if (!total) return;
+  const ratio = Number(npSeek.value) / 1000;
+  audio.currentTime = ratio * total;
+  paintRange(npSeek, ratio);
+  npCur.textContent = formatTime(audio.currentTime);
+});
+
+npPrev.addEventListener('click', () => {
+  if (audio.currentTime > 3) {
+    audio.currentTime = 0;
+    return;
+  }
+  step(-1);
+});
+npNext.addEventListener('click', () => step(1));
+
 el<HTMLButtonElement>('detail-close').addEventListener('click', closeDetail);
 
 document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !np.hidden) {
+    closeNowPlaying();
+    return;
+  }
   if (event.key === 'Escape' && currentView === 'terms') {
     closeTerms();
     return;

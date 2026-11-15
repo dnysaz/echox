@@ -13,6 +13,7 @@
 - **Search** — the magnifier opens a full search page. From Home it queries Audius (full tracks), Deezer and iTunes (previews), Apple Podcasts and Radio Browser in parallel, songs first; searching from the Podcasts or Radio page only searches that source.
 - **Artist view** — clicking any card expands a full-width panel with the artwork, and lists everything else available from that artist.
 - **Playback** — a persistent player bar with play/pause, previous/next, seek and volume, plus the queue built from the list you are looking at.
+- **Full-screen now playing** — the expand button next to Like (or the player cover) opens the artwork on a blurred copy of itself, with the source details the API returns: genre, mood, tags, release date, play/favorite/repost counts, album, episode length, station language, codec, bitrate and more, plus a link back to the original source.
 - **Library on this device** — play again, most played, recently played history and liked songs, all stored in `localStorage`.
 - **Resume after reload** — the last played song, its queue and its position are restored, and playback continues automatically when the browser allows it.
 - **Live radio and podcasts** — community radio stations (HTTPS streams only) and podcast series with full episodes; the radio page loads 20 stations at a time with a *Load more* button, and tapping the now-playing radio title lists the other stations from the same country.

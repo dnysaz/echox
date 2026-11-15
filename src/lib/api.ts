@@ -10,6 +10,8 @@ export type Show = {
   artwork: string;
 };
 
+export type InfoItem = { label: string; value: string; href?: string };
+
 export type Track = {
   id: string;
   title: string;
@@ -19,6 +21,12 @@ export type Track = {
   src: string;
   source: Source;
   genre?: string;
+  album?: string;
+  description?: string;
+  link?: string;
+  linkLabel?: string;
+  /** Everything else the source API knows about this item. */
+  info?: InfoItem[];
   artistHandle?: string;
   artistId?: number;
   permalink?: string;
@@ -33,9 +41,17 @@ type AudiusTrack = {
   duration?: number;
   is_streamable?: boolean;
   genre?: string;
+  mood?: string;
+  tags?: string;
+  description?: string;
+  release_date?: string;
+  created_at?: string;
+  play_count?: number;
+  favorite_count?: number;
+  repost_count?: number;
   permalink?: string;
   artwork?: Record<string, string> & { mirrors?: string[] };
-  user?: { name?: string; handle?: string };
+  user?: { name?: string; handle?: string; follower_count?: number; track_count?: number };
 };
 
 type ItunesTrack = {
@@ -44,6 +60,12 @@ type ItunesTrack = {
   trackName?: string;
   artistName?: string;
   artistId?: number;
+  collectionName?: string;
+  primaryGenreName?: string;
+  releaseDate?: string;
+  trackNumber?: number;
+  trackCount?: number;
+  trackExplicitness?: string;
   artworkUrl100?: string;
   trackTimeMillis?: number;
   previewUrl?: string;
@@ -65,10 +87,14 @@ type ItunesPodcast = {
   collectionId?: number;
   collectionName?: string;
   artistName?: string;
+  description?: string;
+  releaseDate?: string;
+  trackNumber?: number;
   artworkUrl600?: string;
   artworkUrl100?: string;
   trackTimeMillis?: number;
   previewUrl?: string;
+  trackViewUrl?: string;
 };
 
 type DeezerTrack = {
@@ -76,8 +102,9 @@ type DeezerTrack = {
   title?: string;
   duration?: number;
   preview?: string;
+  explicit_lyrics?: boolean;
   artist?: { id?: number; name?: string };
-  album?: { title?: string; cover_medium?: string; cover_big?: string };
+  album?: { id?: number; title?: string; cover_medium?: string; cover_big?: string };
 };
 
 type DeezerList = { data?: DeezerTrack[] };
@@ -90,8 +117,36 @@ type RadioStation = {
   tags?: string;
   country?: string;
   countrycode?: string;
+  state?: string;
+  language?: string;
+  codec?: string;
+  bitrate?: number;
+  votes?: number;
+  clickcount?: number;
+  homepage?: string;
   hls?: number;
 };
+
+function isoDate(value?: string): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function countLabel(value?: number): string | undefined {
+  return typeof value === 'number' && value > 0 ? value.toLocaleString('en-US') : undefined;
+}
+
+function field(label: string, value?: string | number | null): InfoItem | null {
+  if (value === undefined || value === null || value === '') return null;
+  const text = typeof value === 'number' ? String(value) : value.trim();
+  return text ? { label, value: text } : null;
+}
+
+function collect(...items: (InfoItem | null)[]): InfoItem[] {
+  return items.filter((item): item is InfoItem => item !== null);
+}
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -132,6 +187,7 @@ function getJsonp<T>(url: string): Promise<T> {
 function fromAudius(t: AudiusTrack): Track | null {
   if (!t.id || !t.title || t.is_streamable === false) return null;
   const art = t.artwork?.['480x480'] ?? t.artwork?.['150x150'] ?? '';
+  const link = t.permalink ? `https://audius.co${t.permalink}` : undefined;
   return {
     id: `audius:${t.id}`,
     title: t.title.trim(),
@@ -141,6 +197,24 @@ function fromAudius(t: AudiusTrack): Track | null {
     src: `${AUDIUS}/tracks/${t.id}/stream?app_name=${APP_NAME}`,
     source: 'audius',
     genre: t.genre,
+    description: t.description?.trim() || undefined,
+    link,
+    linkLabel: 'Open on Audius',
+    info: collect(
+      field('Genre', t.genre),
+      field('Mood', t.mood),
+      field('Tags', t.tags),
+      field('Released', isoDate(t.release_date)),
+      field('Uploaded', isoDate(t.created_at)),
+      field('Plays', countLabel(t.play_count)),
+      field('Favorites', countLabel(t.favorite_count)),
+      field('Reposts', countLabel(t.repost_count)),
+      field('Artist', t.user?.name),
+      field('Handle', t.user?.handle ? `@${t.user.handle}` : undefined),
+      field('Followers', countLabel(t.user?.follower_count)),
+      field('Tracks', countLabel(t.user?.track_count)),
+      field('Audius ID', t.id)
+    ),
     artistHandle: t.user?.handle,
     permalink: t.permalink,
   };
@@ -156,6 +230,17 @@ function fromDeezer(t: DeezerTrack): Track | null {
     duration: t.duration ?? 0,
     src: t.preview,
     source: 'deezer',
+    album: t.album?.title,
+    link: `https://www.deezer.com/track/${t.id}`,
+    linkLabel: 'Open on Deezer',
+    info: collect(
+      field('Album', t.album?.title),
+      field('Artist', t.artist?.name),
+      field('Full length', t.duration ? formatTime(t.duration) : undefined),
+      field('Playback', '30-second preview'),
+      field('Explicit', t.explicit_lyrics ? 'Yes' : undefined),
+      field('Deezer ID', t.id)
+    ),
     artistId: t.artist?.id,
     permalink: `https://www.deezer.com/track/${t.id}`,
   };
@@ -173,14 +258,27 @@ function fromShow(r: ItunesShow): Show | null {
 
 function fromPodcast(r: ItunesPodcast): Track | null {
   if (!r.previewUrl || !r.trackName) return null;
+  const duration = Math.round((r.trackTimeMillis ?? 0) / 1000);
   return {
     id: `podcast:${r.trackId ?? r.previewUrl}`,
     title: r.trackName,
     artist: r.collectionName || r.artistName || 'Podcast',
     artwork: (r.artworkUrl600 || r.artworkUrl100 || '').replace('100x100', '600x600'),
-    duration: Math.round((r.trackTimeMillis ?? 0) / 1000),
+    duration,
     src: r.previewUrl,
     source: 'podcast',
+    album: r.collectionName,
+    description: r.description?.trim() || undefined,
+    link: r.trackViewUrl,
+    linkLabel: 'Open in Apple Podcasts',
+    info: collect(
+      field('Show', r.collectionName),
+      field('Publisher', r.artistName),
+      field('Released', isoDate(r.releaseDate)),
+      field('Episode length', duration ? formatTime(duration) : undefined),
+      field('Episode', r.trackNumber),
+      field('Playback', '30-second preview')
+    ),
     artistId: r.collectionId,
   };
 }
@@ -201,6 +299,20 @@ function fromRadio(s: RadioStation): Track | null {
     src: s.url_resolved,
     source: 'radio',
     genre: tag,
+    link: s.homepage?.startsWith('http') ? s.homepage : undefined,
+    linkLabel: 'Open station website',
+    info: collect(
+      field('Country', s.country ? `${s.country}${s.countrycode ? ` (${s.countrycode})` : ''}` : undefined),
+      field('Region', s.state),
+      field('Language', s.language),
+      field('Tags', s.tags ? s.tags.split(',').filter(Boolean).join(', ') : undefined),
+      field('Codec', s.codec),
+      field('Bitrate', s.bitrate ? `${s.bitrate} kbps` : undefined),
+      field('Votes', countLabel(s.votes)),
+      field('Clicks', countLabel(s.clickcount)),
+      field('Stream', s.url_resolved),
+      field('Station ID', s.stationuuid)
+    ),
     live: true,
     country: s.country,
     countryCode: s.countrycode,
@@ -217,6 +329,21 @@ function fromItunes(r: ItunesTrack): Track | null {
     duration: Math.round((r.trackTimeMillis ?? 30000) / 1000),
     src: r.previewUrl,
     source: 'itunes',
+    album: r.collectionName,
+    link: r.trackViewUrl,
+    linkLabel: 'Open in Apple Music',
+    info: collect(
+      field('Album', r.collectionName),
+      field('Artist', r.artistName),
+      field('Genre', r.primaryGenreName),
+      field('Released', isoDate(r.releaseDate)),
+      field(
+        'Track',
+        r.trackNumber ? `${r.trackNumber}${r.trackCount ? ` of ${r.trackCount}` : ''}` : undefined
+      ),
+      field('Explicit', r.trackExplicitness && r.trackExplicitness !== 'notExplicit' ? 'Yes' : undefined),
+      field('Preview length', '30 seconds')
+    ),
     artistId: r.artistId,
     permalink: r.trackViewUrl,
   };

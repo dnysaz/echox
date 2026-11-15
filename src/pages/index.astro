@@ -312,7 +312,7 @@ import TermsArticle from '../components/TermsArticle.astro';
   <div class="player disabled" id="player">
     <div class="now">
       <button class="now-open" id="now-open" type="button" aria-label="Open the list this song is playing from" disabled>
-        <span class="now-art" id="now-art"><span aria-hidden="true">♪</span></span>
+        <span class="now-art" id="now-art" title="Open full now playing"><span aria-hidden="true">♪</span></span>
         <span class="now-meta">
           <span class="now-title" id="now-title">Nothing playing</span>
           <span class="now-artist" id="now-artist">Pick a song to start</span>
@@ -322,6 +322,12 @@ import TermsArticle from '../components/TermsArticle.astro';
       <button class="icon-btn" id="like-btn" type="button" aria-label="Like song" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
           <path transform="translate(0 -0.6)" d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 7a4 4 0 0 1 7 3.8C19 15.6 12 20 12 20Z" />
+        </svg>
+      </button>
+      <button class="icon-btn" id="full-btn" type="button" aria-label="Open full now playing" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 4H5.5A1.5 1.5 0 0 0 4 5.5V9" /><path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9" />
+          <path d="M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15" /><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20H9" />
         </svg>
       </button>
     </div>
@@ -356,6 +362,62 @@ import TermsArticle from '../components/TermsArticle.astro';
         </svg>
       </button>
       <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume" />
+    </div>
+  </div>
+
+  <div class="np" id="np" hidden role="dialog" aria-modal="true" aria-labelledby="np-title">
+    <div class="np-ambient" id="np-ambient" aria-hidden="true"></div>
+    <div class="np-sheet">
+      <header class="np-top">
+        <button class="np-close" id="np-close" type="button" aria-label="Close now playing">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        <p class="np-eyebrow"><span class="np-dot" id="np-dot" aria-hidden="true"></span><span id="np-source">Now playing</span></p>
+        <button class="icon-btn" id="np-like" type="button" aria-label="Like song" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+            <path transform="translate(0 -0.6)" d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 7a4 4 0 0 1 7 3.8C19 15.6 12 20 12 20Z" />
+          </svg>
+        </button>
+      </header>
+
+      <div class="np-scroll">
+        <div class="np-body">
+          <div class="np-art" id="np-art"><span aria-hidden="true">♪</span></div>
+
+          <div class="np-copy">
+            <h2 id="np-title">—</h2>
+            <p class="np-artist" id="np-artist">—</p>
+            <p class="np-desc" id="np-desc" hidden></p>
+          </div>
+
+          <div class="np-progress" id="np-progress">
+            <input id="np-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Seek" />
+            <div class="np-times"><span id="np-cur">0:00</span><span id="np-dur">0:00</span></div>
+          </div>
+
+          <div class="np-controls">
+            <button class="icon-btn np-skip" id="np-prev" type="button" aria-label="Previous song">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM18 5.5v13L8.5 12z" /></svg>
+            </button>
+            <button class="np-play" id="np-play" type="button" aria-label="Play"></button>
+            <button class="icon-btn np-skip" id="np-next" type="button" aria-label="Next song">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM6 5.5v13L15.5 12z" /></svg>
+            </button>
+          </div>
+
+          <div class="np-actions">
+            <button class="np-detail" id="np-detail" type="button">More from this artist</button>
+            <a class="np-link" id="np-link" target="_blank" rel="noreferrer noopener" hidden>Open source</a>
+          </div>
+
+          <section class="np-facts" id="np-facts" hidden>
+            <h3 id="np-facts-title">Track details</h3>
+            <dl class="np-info" id="np-info"></dl>
+          </section>
+        </div>
+      </div>
     </div>
   </div>
 
