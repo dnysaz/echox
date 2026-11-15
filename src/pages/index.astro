@@ -154,7 +154,9 @@ import TermsArticle from '../components/TermsArticle.astro';
         </div>
 
         <div class="detail-list-head">
-          <h3>More from <span id="detail-artist-name">this artist</span></h3>
+          <h3>
+            <span id="detail-list-prefix">More from</span>{' '}<span id="detail-artist-name">this artist</span>
+          </h3>
           <span id="detail-count"></span>
         </div>
         <div class="tracklist" id="detail-list"></div>

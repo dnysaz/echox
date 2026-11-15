@@ -23,6 +23,8 @@ export type Track = {
   artistId?: number;
   permalink?: string;
   live?: boolean;
+  country?: string;
+  countryCode?: string;
 };
 
 type AudiusTrack = {
@@ -87,6 +89,7 @@ type RadioStation = {
   favicon?: string;
   tags?: string;
   country?: string;
+  countrycode?: string;
   hls?: number;
 };
 
@@ -199,6 +202,8 @@ function fromRadio(s: RadioStation): Track | null {
     source: 'radio',
     genre: tag,
     live: true,
+    country: s.country,
+    countryCode: s.countrycode,
   };
 }
 
@@ -289,6 +294,13 @@ const RADIO_API = 'https://de1.api.radio-browser.info/json/stations/search';
 export async function getRadioStations(limit = 20, offset = 0): Promise<Track[]> {
   const data = await getJson<RadioStation[]>(
     `${RADIO_API}?limit=${limit}&offset=${offset}&order=clickcount&reverse=true&hidebroken=true`
+  );
+  return data.map(fromRadio).filter((t): t is Track => t !== null);
+}
+
+export async function getRadioByCountry(countryCode: string, limit = 40): Promise<Track[]> {
+  const data = await getJson<RadioStation[]>(
+    `${RADIO_API}?countrycode=${encodeURIComponent(countryCode)}&limit=${limit}&order=clickcount&reverse=true&hidebroken=true`
   );
   return data.map(fromRadio).filter((t): t is Track => t !== null);
 }

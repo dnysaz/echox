@@ -15,9 +15,10 @@
 - **Playback** — a persistent player bar with play/pause, previous/next, seek and volume, plus the queue built from the list you are looking at.
 - **Library on this device** — play again, most played, recently played history and liked songs, all stored in `localStorage`.
 - **Resume after reload** — the last played song, its queue and its position are restored, and playback continues automatically when the browser allows it.
-- **Live radio and podcasts** — community radio stations (HTTPS streams only) and podcast series with full episodes; the radio page loads 20 stations at a time with a *Load more* button.
+- **Live radio and podcasts** — community radio stations (HTTPS streams only) and podcast series with full episodes; the radio page loads 20 stations at a time with a *Load more* button, and tapping the now-playing radio title lists the other stations from the same country.
 - **Mobile first** — compact top bar with the echoX title and a magnifier that opens a full-width search field, bottom navigation, safe-area aware player above the nav, two-column grid and a scrollable detail panel on phones.
 - **Cover fallback** — tracks without artwork (or with broken artwork URLs) get a branded echoX placeholder instead of a broken image.
+- **Installable PWA** — web app manifest, maskable home-screen icons and a service worker that caches the app shell, so the player can be installed and opened without browser chrome.
 
 ## Tech stack
 
@@ -54,6 +55,12 @@ npm run preview  # serve ./dist locally
 ```
 
 The build output is fully static, so it can be dropped on GitHub Pages, Netlify, Vercel, Cloudflare Pages or any static host. No environment variables or API keys are needed.
+
+### Install as an app
+
+Chrome, Edge and Android offer **Install app** (or the in-app banner) and open echoX in a standalone window with the play-button icon. On iOS use Safari's **Share → Add to Home Screen**; the install banner explains that step there.
+
+The service worker caches the app shell, icons and hashed build assets, so the interface opens instantly and survives a reload without a connection. Audio is not cached: tracks, radio and podcasts are streamed from their sources and still need the network. Registration only happens in production builds (`npm run build` then `npm run preview`, or a deployed host), never in `astro dev`.
 
 ## Project structure
 

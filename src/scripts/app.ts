@@ -3,6 +3,7 @@ import {
   getArtistTracks,
   getPodcastEpisodes,
   getPodcastShows,
+  getRadioByCountry,
   getRadioStations,
   getTrending,
   searchAudius,
@@ -52,6 +53,7 @@ const detailLike = el<HTMLButtonElement>('detail-like');
 const detailList = el<HTMLDivElement>('detail-list');
 const detailCount = el<HTMLSpanElement>('detail-count');
 const detailArtistName = el<HTMLSpanElement>('detail-artist-name');
+const detailListPrefix = el<HTMLSpanElement>('detail-list-prefix');
 const nowOpen = el<HTMLButtonElement>('now-open');
 
 const trendingGrid = el<HTMLDivElement>('trending-grid');
@@ -294,6 +296,8 @@ function artistKey(track: Track): string {
       return `deezer:${track.artistId ?? track.artist}`;
     case 'podcast':
       return `podcast:${track.artistId ?? track.artist}`;
+    case 'radio':
+      return `radio:${track.countryCode ?? track.artist}`;
     default:
       return `itunes:${track.artistId ?? track.artist}`;
   }
@@ -414,19 +418,32 @@ async function openDetail(track: Track) {
   detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const key = artistKey(track);
+  const isRadio = track.live === true;
   detailKey = key;
   detailCount.textContent = '';
   detailList.innerHTML = `<div class="row-skeleton"></div><div class="row-skeleton"></div><div class="row-skeleton"></div>`;
 
   try {
-    const tracks = await getArtistTracks(track);
+    const tracks = isRadio
+      ? track.countryCode
+        ? await getRadioByCountry(track.countryCode)
+        : []
+      : await getArtistTracks(track);
     if (detailKey !== key || !detailOpen) return;
-    detailTracks = tracks.length ? tracks : [track];
+    // A live station lists the other stations from its own region.
+    const list = isRadio ? tracks.filter((item) => item.id !== track.id) : tracks;
+    detailTracks = list.length ? list : [track];
     renderDetailList(track);
   } catch {
     if (detailKey !== key) return;
     detailTracks = [track];
-    showStatus(detailList, 'Could not load more songs from this artist.', true);
+    showStatus(
+      detailList,
+      isRadio
+        ? 'Could not load other stations from this region.'
+        : 'Could not load more songs from this artist.',
+      true
+    );
     detailCount.textContent = '';
   }
 }
@@ -435,7 +452,8 @@ function renderDetailHead(track: Track) {
   detailArt.innerHTML = coverMarkup(track, 'lg');
   detailTitle.textContent = track.title;
   detailArtist.textContent = track.artist;
-  detailArtistName.textContent = track.artist;
+  detailArtistName.textContent = track.live ? track.country || track.artist : track.artist;
+  detailListPrefix.textContent = track.live ? 'Other live stations in' : 'More from';
   detailMeta.textContent = sourceMeta(track);
   detailPlay.innerHTML = audio.paused ? playIcon : pauseIcon;
   detailPlay.setAttribute('aria-label', audio.paused ? 'Play' : 'Pause');
@@ -443,7 +461,8 @@ function renderDetailHead(track: Track) {
 }
 
 function renderDetailList(active: Track) {
-  detailCount.textContent = `${detailTracks.length} ${detailTracks.length === 1 ? 'song' : 'songs'}`;
+  const unit = active.live ? 'station' : 'song';
+  detailCount.textContent = `${detailTracks.length} ${detailTracks.length === 1 ? unit : `${unit}s`}`;
   detailList.innerHTML = '';
   detailTracks.forEach((track, i) => {
     const row = document.createElement('button');
@@ -458,7 +477,7 @@ function renderDetailList(active: Track) {
         <span class="row-title">${escapeHtml(track.title)}</span>
         <span class="row-artist">${escapeHtml(track.artist)}</span>
       </span>
-      <span class="row-dur">${formatTime(track.duration)}</span>
+      <span class="row-dur">${track.live ? 'LIVE' : formatTime(track.duration)}</span>
       <span class="row-play">${playIcon}</span>
     `;
     row.addEventListener('click', () => {
@@ -480,6 +499,14 @@ function closeDetail() {
 // switching to another menu), without reloading or interrupting playback.
 function showPlayingList() {
   if (!current) return;
+  if (current.live) {
+    if (detailOpen && detailKey === artistKey(current)) {
+      detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    void openDetail(current);
+    return;
+  }
   if (detailOpen) {
     detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
