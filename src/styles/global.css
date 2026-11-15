@@ -646,6 +646,7 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 .detail-actions { display: flex; align-items: center; gap: 8px; }
 .detail-play {
+  flex: none;
   width: 44px;
   height: 44px;
   display: grid;
@@ -844,6 +845,7 @@ input[type="search"]::-webkit-search-results-decoration {
 .icon-btn {
   display: grid;
   place-items: center;
+  flex: none;
   width: 34px;
   height: 34px;
   border: 0;
@@ -864,6 +866,7 @@ input[type="search"]::-webkit-search-results-decoration {
 .controls { display: flex; align-items: center; justify-content: center; gap: 10px; }
 
 .play-btn {
+  flex: none;
   width: 40px;
   height: 40px;
   display: grid;
@@ -1440,6 +1443,7 @@ body.np-open { overflow: hidden; }
 .np-skip { width: 44px; height: 44px; }
 .np-skip svg { width: 22px; height: 22px; }
 .np-play {
+  flex: none;
   width: 64px;
   height: 64px;
   display: grid;
