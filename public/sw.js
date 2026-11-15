@@ -1,7 +1,8 @@
-const VERSION = 'echox-v1';
+// Bump this whenever the shell URLs or the caching rules change.
+const VERSION = 'echox-v2';
 const SHELL = [
   '/',
-  '/terms',
+  '/terms/',
   '/manifest.webmanifest',
   '/favicon.svg',
   '/icon-192.png',
@@ -12,10 +13,12 @@ const SHELL = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(VERSION)
-      .then((cache) => cache.addAll(SHELL))
-      .then(() => self.skipWaiting())
+    (async () => {
+      const cache = await caches.open(VERSION);
+      // One missing shell file must not abort the whole install.
+      await Promise.allSettled(SHELL.map((url) => cache.add(url)));
+      await self.skipWaiting();
+    })()
   );
 });
 

@@ -126,12 +126,20 @@ import TermsArticle from '../components/TermsArticle.astro';
           </svg>
           <span class="search-toggle-label">Search</span>
         </button>
-        <button class="search-cancel" id="search-cancel" type="button" aria-label="Close search">×</button>
+        <button class="search-cancel" id="search-cancel" type="button" aria-label="Close search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6 18 18M18 6 6 18" />
+          </svg>
+        </button>
         <span class="pill">beta</span>
       </header>
 
       <section class="detail" id="detail" hidden aria-live="polite">
-        <button class="detail-close" id="detail-close" type="button" aria-label="Close">×</button>
+        <button class="detail-close" id="detail-close" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6 18 18M18 6 6 18" />
+          </svg>
+        </button>
 
         <div class="detail-vibe" aria-hidden="true">
           <span class="vibe-glow"></span>
@@ -371,7 +379,7 @@ import TermsArticle from '../components/TermsArticle.astro';
       <header class="np-top">
         <button class="np-close" id="np-close" type="button" aria-label="Close now playing">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m6 9 6 6 6-6" />
+            <path d="M5 8.5 12 15.5 19 8.5" />
           </svg>
         </button>
         <p class="np-eyebrow"><span class="np-dot" id="np-dot" aria-hidden="true"></span><span id="np-source">Now playing</span></p>

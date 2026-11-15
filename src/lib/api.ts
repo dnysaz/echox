@@ -277,7 +277,7 @@ function fromPodcast(r: ItunesPodcast): Track | null {
       field('Released', isoDate(r.releaseDate)),
       field('Episode length', duration ? formatTime(duration) : undefined),
       field('Episode', r.trackNumber),
-      field('Playback', '30-second preview')
+      field('Playback', 'Streamed from Apple Podcasts')
     ),
     artistId: r.collectionId,
   };
@@ -350,24 +350,24 @@ function fromItunes(r: ItunesTrack): Track | null {
 }
 
 export async function getTrending(limit = 18): Promise<Track[]> {
-  const data = await getJson<{ data: AudiusTrack[] }>(
+  const data = await getJson<{ data?: AudiusTrack[] }>(
     `${AUDIUS}/tracks/trending?app_name=${APP_NAME}&limit=${limit}`
   );
-  return data.data.map(fromAudius).filter((t): t is Track => t !== null);
+  return (data?.data ?? []).map(fromAudius).filter((t): t is Track => t !== null);
 }
 
 export async function searchAudius(query: string, limit = 15): Promise<Track[]> {
-  const data = await getJson<{ data: AudiusTrack[] }>(
+  const data = await getJson<{ data?: AudiusTrack[] }>(
     `${AUDIUS}/tracks/search?query=${encodeURIComponent(query)}&app_name=${APP_NAME}&limit=${limit}`
   );
-  return data.data.map(fromAudius).filter((t): t is Track => t !== null);
+  return (data?.data ?? []).map(fromAudius).filter((t): t is Track => t !== null);
 }
 
 export async function searchItunes(query: string, limit = 8): Promise<Track[]> {
-  const data = await getJson<{ results: ItunesTrack[] }>(
+  const data = await getJson<{ results?: ItunesTrack[] }>(
     `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=${limit}`
   );
-  return data.results.map(fromItunes).filter((t): t is Track => t !== null);
+  return (data?.results ?? []).map(fromItunes).filter((t): t is Track => t !== null);
 }
 
 export async function searchDeezer(query: string, limit = 12): Promise<Track[]> {
@@ -378,17 +378,17 @@ export async function searchDeezer(query: string, limit = 12): Promise<Track[]> 
 }
 
 export async function searchPodcasts(query: string, limit = 6): Promise<Track[]> {
-  const data = await getJson<{ results: ItunesPodcast[] }>(
+  const data = await getJson<{ results?: ItunesPodcast[] }>(
     `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=podcast&entity=podcastEpisode&limit=${limit}`
   );
-  return data.results.map(fromPodcast).filter((t): t is Track => t !== null);
+  return (data?.results ?? []).map(fromPodcast).filter((t): t is Track => t !== null);
 }
 
 export async function searchPodcastShows(query: string, limit = 12): Promise<Show[]> {
-  const data = await getJson<{ results: ItunesShow[] }>(
+  const data = await getJson<{ results?: ItunesShow[] }>(
     `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=podcast&entity=podcast&limit=${limit}`
   );
-  return data.results.map(fromShow).filter((s): s is Show => s !== null);
+  return (data?.results ?? []).map(fromShow).filter((s): s is Show => s !== null);
 }
 
 const PODCAST_TOPICS = ['comedy', 'news', 'technology', 'indonesia'];
@@ -410,67 +410,71 @@ export async function getPodcastShows(limit = 12): Promise<Show[]> {
 
 /** Every available episode of one podcast series. */
 export async function getPodcastEpisodes(showId: number, limit = 30): Promise<Track[]> {
-  const data = await getJson<{ results: ItunesPodcast[] }>(
+  const data = await getJson<{ results?: ItunesPodcast[] }>(
     `https://itunes.apple.com/lookup?id=${showId}&entity=podcastEpisode&limit=${limit}`
   );
-  return data.results.map(fromPodcast).filter((t): t is Track => t !== null);
+  return (data?.results ?? []).map(fromPodcast).filter((t): t is Track => t !== null);
 }
 
 const RADIO_API = 'https://de1.api.radio-browser.info/json/stations/search';
 
+function radioList(data: RadioStation[] | null | undefined): RadioStation[] {
+  return Array.isArray(data) ? data : [];
+}
+
 export async function getRadioStations(limit = 20, offset = 0): Promise<Track[]> {
-  const data = await getJson<RadioStation[]>(
+  const data = await getJson<RadioStation[] | null>(
     `${RADIO_API}?limit=${limit}&offset=${offset}&order=clickcount&reverse=true&hidebroken=true`
   );
-  return data.map(fromRadio).filter((t): t is Track => t !== null);
+  return radioList(data).map(fromRadio).filter((t): t is Track => t !== null);
 }
 
 export async function getRadioByCountry(countryCode: string, limit = 40): Promise<Track[]> {
-  const data = await getJson<RadioStation[]>(
+  const data = await getJson<RadioStation[] | null>(
     `${RADIO_API}?countrycode=${encodeURIComponent(countryCode)}&limit=${limit}&order=clickcount&reverse=true&hidebroken=true`
   );
-  return data.map(fromRadio).filter((t): t is Track => t !== null);
+  return radioList(data).map(fromRadio).filter((t): t is Track => t !== null);
 }
 
 export async function searchRadio(query: string, limit = 10): Promise<Track[]> {
   const params = `limit=${limit}&hidebroken=true&order=clickcount&reverse=true`;
-  const byName = await getJson<RadioStation[]>(
-    `${RADIO_API}?name=${encodeURIComponent(query)}&${params}`
+  const byName = radioList(
+    await getJson<RadioStation[] | null>(`${RADIO_API}?name=${encodeURIComponent(query)}&${params}`)
   );
   const list = byName.length
     ? byName
-    : await getJson<RadioStation[]>(`${RADIO_API}?tag=${encodeURIComponent(query)}&${params}`);
+    : radioList(await getJson<RadioStation[] | null>(`${RADIO_API}?tag=${encodeURIComponent(query)}&${params}`));
   return list.map(fromRadio).filter((t): t is Track => t !== null);
 }
 
 /** All available songs by the same artist. */
 export async function getArtistTracks(track: Track, limit = 40): Promise<Track[]> {
   if (track.source === 'audius' && track.artistHandle) {
-    const data = await getJson<{ data: AudiusTrack[] }>(
+    const data = await getJson<{ data?: AudiusTrack[] }>(
       `${AUDIUS}/users/handle/${encodeURIComponent(track.artistHandle)}/tracks?app_name=${APP_NAME}&limit=${limit}`
     );
-    return data.data.map(fromAudius).filter((t): t is Track => t !== null);
+    return (data?.data ?? []).map(fromAudius).filter((t): t is Track => t !== null);
   }
 
   if (track.source === 'deezer' && track.artistId) {
     const data = await getJsonp<DeezerList>(
       `https://api.deezer.com/artist/${track.artistId}/top?limit=${limit}`
     );
-    return (data.data ?? []).map(fromDeezer).filter((t): t is Track => t !== null);
+    return (data?.data ?? []).map(fromDeezer).filter((t): t is Track => t !== null);
   }
 
   if (track.source === 'itunes' && track.artistId) {
-    const data = await getJson<{ results: ItunesTrack[] }>(
+    const data = await getJson<{ results?: ItunesTrack[] }>(
       `https://itunes.apple.com/lookup?id=${track.artistId}&entity=song&limit=${limit}`
     );
-    return data.results.map(fromItunes).filter((t): t is Track => t !== null);
+    return (data?.results ?? []).map(fromItunes).filter((t): t is Track => t !== null);
   }
 
   if (track.source === 'podcast' && track.artistId) {
-    const data = await getJson<{ results: ItunesPodcast[] }>(
+    const data = await getJson<{ results?: ItunesPodcast[] }>(
       `https://itunes.apple.com/lookup?id=${track.artistId}&entity=podcastEpisode&limit=${limit}`
     );
-    return data.results.map(fromPodcast).filter((t): t is Track => t !== null);
+    return (data?.results ?? []).map(fromPodcast).filter((t): t is Track => t !== null);
   }
 
   return [track];

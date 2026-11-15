@@ -31,6 +31,13 @@ body { min-height: 100vh; }
 
 button { font: inherit; color: inherit; }
 
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 button, a, input { -webkit-tap-highlight-color: transparent; }
 button, .card, .row, .chip { touch-action: manipulation; }
 img { display: block; }
@@ -187,6 +194,8 @@ input[type="search"]::-webkit-search-results-decoration {
 .search-toggle,
 .search-cancel,
 .search-toggle-label { display: none; }
+
+.search-cancel svg { display: block; width: 16px; height: 16px; }
 
 .pill {
   padding: 7px 12px;
@@ -345,7 +354,7 @@ input[type="search"]::-webkit-search-results-decoration {
   box-shadow: 0 8px 18px rgba(0,0,0,.4);
 }
 .card:hover .card-play, .card.playing .card-play { opacity: 1; translate: 0 0; }
-.card-play svg { display: block; width: 17px; height: 17px; }
+.card-play svg { display: block; width: 18px; height: 18px; }
 
 .badge-src {
   position: absolute;
@@ -471,7 +480,6 @@ input[type="search"]::-webkit-search-results-decoration {
 .art-fallback-sm .art-fallback-word { display: none; }
 
 /* ---------- Expanded track detail ---------- */
-[hidden] { display: none !important; }
 
 .detail {
   position: relative;
@@ -651,7 +659,7 @@ input[type="search"]::-webkit-search-results-decoration {
   transition: filter .15s, transform .15s;
 }
 .detail-play:hover { filter: brightness(1.08); transform: scale(1.04); }
-.detail-play svg { display: block; width: 19px; height: 19px; }
+.detail-play svg { display: block; width: 20px; height: 20px; }
 
 .detail-close {
   position: absolute;
@@ -659,14 +667,16 @@ input[type="search"]::-webkit-search-results-decoration {
   right: 14px;
   width: 30px;
   height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: #26262f;
   color: var(--muted);
-  font-size: 18px;
-  line-height: 1;
   cursor: pointer;
 }
+.detail-close svg { display: block; width: 14px; height: 14px; }
 .detail-close:hover { background: #32323d; color: #fff; }
 
 .detail-list-head {
@@ -736,7 +746,7 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 .row:hover .row-play { color: #fff; background: rgba(255, 255, 255, .08); }
 .row.playing .row-play { color: var(--accent); }
-.row-play svg { width: 14px; height: 14px; }
+.row-play svg { width: 15px; height: 15px; }
 
 .row-skeleton {
   height: 56px;
@@ -868,7 +878,7 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 .play-btn:hover { transform: scale(1.05); background: var(--accent); }
 .play-btn:active { transform: scale(.97); }
-.play-btn svg { display: block; width: 18px; height: 18px; }
+.play-btn svg { display: block; width: 20px; height: 20px; }
 
 .progress-row {
   display: flex;
@@ -1043,13 +1053,11 @@ input[type="range"]::-moz-range-thumb {
     width: 40px;
     height: 40px;
     flex: none;
-    padding: 0 0 2px;
+    padding: 0;
     border: 1px solid var(--line);
     border-radius: 50%;
     background: var(--panel-2);
     color: var(--text);
-    font-size: 22px;
-    line-height: 1;
     cursor: pointer;
   }
 
@@ -1254,14 +1262,19 @@ input[type="range"]::-moz-range-thumb {
 .install-go:hover { filter: brightness(1.06); }
 .install-close {
   flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: 0;
+  border-radius: 50%;
   background: none;
   color: var(--muted);
-  font-size: 20px;
-  line-height: 1;
-  padding: 4px 6px;
   cursor: pointer;
 }
+.install-close:hover { background: rgba(255, 255, 255, .08); color: var(--text); }
+.install-close svg { display: block; width: 15px; height: 15px; }
 @media (max-width: 640px) {
   .install-banner { bottom: calc(var(--player) + var(--nav) + var(--safe) + 12px); }
 }
@@ -1335,6 +1348,7 @@ body.np-open { overflow: hidden; }
   flex: none;
   display: grid;
   place-items: center;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, .07);
@@ -1343,7 +1357,7 @@ body.np-open { overflow: hidden; }
   transition: background .15s;
 }
 .np-close:hover { background: rgba(255, 255, 255, .14); }
-.np-close svg { width: 20px; height: 20px; }
+.np-close svg { display: block; width: 22px; height: 22px; }
 
 .np-eyebrow {
   flex: 1;
@@ -1440,7 +1454,7 @@ body.np-open { overflow: hidden; }
 }
 .np-play:hover { transform: scale(1.04); filter: brightness(1.07); }
 .np-play:active { transform: scale(.97); }
-.np-play svg { display: block; width: 26px; height: 26px; }
+.np-play svg { display: block; width: 28px; height: 28px; }
 
 .np-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 .np-detail, .np-link {

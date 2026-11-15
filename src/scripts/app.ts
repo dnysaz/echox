@@ -19,11 +19,14 @@ const LIKED_KEY = 'echox:liked';
 const HISTORY_KEY = 'echox:history';
 const STATS_KEY = 'echox:stats';
 const PLAYING_KEY = 'echox:playing';
+const VOLUME_KEY = 'echox:volume';
 const HISTORY_MAX = 40;
 const STATS_MAX = 200;
+const LIKED_MAX = 200;
+const TRACK_SOURCES = new Set(['audius', 'deezer', 'itunes', 'podcast', 'radio']);
 
 const playIcon =
-  '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5v14l10-7z"/></svg>';
+  '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
 const pauseIcon =
   '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
 
@@ -122,6 +125,7 @@ let queue: Track[] = [];
 let index = -1;
 let current: Track | null = null;
 let searchTimer: number | undefined;
+let searchSeq = 0;
 let lastVolume = 0.8;
 let detailOpen = false;
 let detailKey: string | null = null;
@@ -161,14 +165,37 @@ function loadLiked(): [string, Track][] {
   try {
     const raw = localStorage.getItem(LIKED_KEY);
     const list = raw ? (JSON.parse(raw) as Track[]) : [];
-    return list.map((t) => [t.id, t]);
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter(isTrack)
+      .slice(-LIKED_MAX)
+      .map((track) => [track.id, track] as [string, Track]);
   } catch {
     return [];
   }
 }
 
 function saveLiked() {
-  localStorage.setItem(LIKED_KEY, JSON.stringify([...liked.values()].slice(0, 200)));
+  try {
+    localStorage.setItem(LIKED_KEY, JSON.stringify([...liked.values()]));
+  } catch {
+    /* storage full or blocked: keep the in-memory likes */
+  }
+}
+
+function loadVolume(): number {
+  const stored = readStore<number | null>(VOLUME_KEY, null);
+  return typeof stored === 'number' && Number.isFinite(stored) && stored >= 0 && stored <= 1
+    ? stored
+    : 0.8;
+}
+
+function saveVolume(value: number) {
+  try {
+    localStorage.setItem(VOLUME_KEY, JSON.stringify(value));
+  } catch {
+    /* storage blocked: the volume still applies for this session */
+  }
 }
 
 function readStore<T>(key: string, fallback: T): T {
@@ -186,7 +213,9 @@ function isTrack(value: unknown): value is Track {
     !!track &&
     typeof track.id === 'string' &&
     typeof track.title === 'string' &&
-    typeof track.src === 'string'
+    typeof track.src === 'string' &&
+    typeof track.source === 'string' &&
+    TRACK_SOURCES.has(track.source)
   );
 }
 
@@ -264,14 +293,16 @@ function restorePlayback() {
   index = position;
   loadTrack(saved.track, false);
 
-  const startAt = Number(saved.time) || 0;
+  const startAt = Math.max(0, Number(saved.time) || 0);
   const resume = () => {
     if (startAt > 0 && Number.isFinite(audio.duration) && startAt < audio.duration - 1) {
       audio.currentTime = startAt;
     }
     if (saved.playing) {
       // Browsers may block autoplay; the song stays loaded and paused.
-      void audio.play().catch(() => {});
+      void audio.play().catch(() => {
+        nowSrc.textContent = 'PAUSED · TAP PLAY TO RESUME';
+      });
     }
   };
   if (audio.readyState >= 1) resume();
@@ -313,8 +344,21 @@ function coverMarkup(track: Pick<Track, 'artwork'>, size: 'sm' | 'md' | 'lg'): s
     <span class="art-fallback-word">echo<span class="brand-x">X</span></span>
   </span>`;
   if (!track.artwork) return fallback;
-  return `${fallback}<img loading="lazy" src="${escapeHtml(track.artwork)}" alt="" onerror="this.style.display='none'">`;
+  return `${fallback}<img loading="lazy" src="${escapeHtml(track.artwork)}" alt="" data-cover />`;
 }
+
+// A broken cover reveals the branded fallback behind it. One capture-phase
+// listener replaces per-image inline handlers, which a strict CSP would block.
+document.addEventListener(
+  'error',
+  (event) => {
+    const target = event.target;
+    if (target instanceof HTMLImageElement && target.hasAttribute('data-cover')) {
+      target.style.display = 'none';
+    }
+  },
+  true
+);
 
 function artistKey(track: Track): string {
   switch (track.source) {
@@ -435,6 +479,13 @@ function syncPlayingCards() {
       play.innerHTML = card.classList.contains('playing') && !audio.paused ? pauseIcon : playIcon;
     }
   });
+  // Detail, history and queue rows share the same playing state as the cards.
+  document.querySelectorAll<HTMLElement>('.row').forEach((row) => {
+    const playing = row.dataset.trackId === current?.id;
+    row.classList.toggle('playing', playing);
+    const play = row.querySelector<HTMLElement>('.row-play');
+    if (play) play.innerHTML = playing && !audio.paused ? pauseIcon : playIcon;
+  });
 }
 
 /* ---------------- Expanded detail panel ---------------- */
@@ -522,6 +573,9 @@ function closeDetail() {
   detailOpen = false;
   detail.hidden = true;
   detailKey = null;
+  // Drop the cached artist list so reopening the panel always matches the
+  // track that is actually playing.
+  detailTracks = [];
   syncVibe();
 }
 
@@ -577,9 +631,13 @@ function syncNowPlaying() {
   npPlay.setAttribute('aria-label', playing ? 'Pause' : 'Play');
 }
 
+let npReturnFocus: HTMLElement | null = null;
+
 function openNowPlaying() {
   if (!current) return;
   renderNowPlaying(current);
+  npReturnFocus =
+    document.activeElement instanceof HTMLElement ? document.activeElement : null;
   np.hidden = false;
   document.body.classList.add('np-open');
   npClose.focus({ preventScroll: true });
@@ -589,6 +647,8 @@ function closeNowPlaying() {
   if (np.hidden) return;
   np.hidden = true;
   document.body.classList.remove('np-open');
+  npReturnFocus?.focus({ preventScroll: true });
+  npReturnFocus = null;
 }
 
 // Reopen the artist list the current song was started from (e.g. after
@@ -622,11 +682,12 @@ function showPlayingList() {
 function onTrackChanged(track: Track) {
   if (!np.hidden) renderNowPlaying(track);
   if (!detailOpen) return;
-  renderDetailHead(track);
+  // A new artist needs a fresh list; otherwise just move the highlight.
   if (artistKey(track) !== detailKey) {
     void openDetail(track);
     return;
   }
+  renderDetailHead(track);
   renderDetailList(track);
 }
 
@@ -684,6 +745,7 @@ function step(delta: number) {
 }
 
 audio.addEventListener('play', () => {
+  if (current) nowSrc.textContent = sourceMeta(current, true);
   savePlayback(true);
   syncVibe();
   syncNowPlaying();
@@ -785,6 +847,7 @@ volume.addEventListener('input', () => {
   audio.volume = value;
   audio.muted = value === 0;
   if (value > 0) lastVolume = value;
+  saveVolume(value);
   paintRange(volume, value);
   syncMuteIcon();
 });
@@ -819,8 +882,17 @@ muteBtn.addEventListener('click', () => {
 });
 
 function toggleLike(track: Track, buttons: HTMLButtonElement[]) {
-  if (liked.has(track.id)) liked.delete(track.id);
-  else liked.set(track.id, track);
+  if (liked.has(track.id)) {
+    liked.delete(track.id);
+  } else {
+    liked.set(track.id, track);
+    // Keep memory and storage on the same limit, dropping the oldest like.
+    while (liked.size > LIKED_MAX) {
+      const oldest = liked.keys().next().value;
+      if (oldest === undefined) break;
+      liked.delete(oldest);
+    }
+  }
   saveLiked();
   const isLiked = liked.has(track.id);
   buttons.forEach((btn) => btn.classList.toggle('liked', isLiked));
@@ -869,6 +941,26 @@ npPrev.addEventListener('click', () => {
   step(-1);
 });
 npNext.addEventListener('click', () => step(1));
+
+// Keep keyboard focus inside the modal while it is open.
+np.addEventListener('keydown', (event) => {
+  if (event.key !== 'Tab') return;
+  const focusable = [
+    ...np.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ),
+  ].filter((node) => node.offsetParent !== null);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
 
 el<HTMLButtonElement>('detail-close').addEventListener('click', closeDetail);
 
@@ -993,6 +1085,8 @@ function openSearchPage() {
     return;
   }
   if (scopeChanged) {
+    // Drop any response still in flight from the previous scope.
+    searchSeq += 1;
     searchHeading.textContent =
       searchScope === 'podcast'
         ? 'Search podcasts'
@@ -1265,6 +1359,9 @@ function renderGenreChips(tracks: Track[]) {
 
 async function runSearch(rawQuery: string) {
   const query = rawQuery.trim();
+  // Only the newest search may paint results: slower responses from an older
+  // query are discarded instead of overwriting fresher ones.
+  const seq = ++searchSeq;
 
   // Starting a search from another view inherits that view's sources.
   if (currentView !== 'search') {
@@ -1311,6 +1408,8 @@ async function runSearch(rawQuery: string) {
     wantPodcasts ? searchPodcasts(query) : Promise.resolve<Track[]>([]),
     wantRadio ? searchRadio(query) : Promise.resolve<Track[]>([]),
   ]);
+
+  if (seq !== searchSeq) return;
 
   if (wantSongs) {
     renderResults(audius, audiusResults, 'No full tracks matched on Audius.', 'Audius search failed. Please try again.');
@@ -1427,8 +1526,12 @@ function renderLibrary() {
 /* ---------------- Init ---------------- */
 
 export function init() {
-  audio.volume = 0.8;
-  paintRange(volume, 0.8);
+  const storedVolume = loadVolume();
+  lastVolume = storedVolume > 0 ? storedVolume : 0.8;
+  audio.volume = storedVolume;
+  audio.muted = storedVolume === 0;
+  volume.value = String(storedVolume);
+  paintRange(volume, storedVolume);
   syncMuteIcon();
   paintRange(seek, 0);
   playBtn.innerHTML = playIcon;

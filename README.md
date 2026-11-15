@@ -31,7 +31,7 @@
 | Audio     | HTML5 `<audio>`, streamed directly from the source APIs        |
 | Icons     | Inline SVG + a hand-made `public/favicon.svg` play-button mark |
 
-No UI framework, no CSS library, no client-side router — roughly 3 source files of logic plus one stylesheet.
+No UI framework, no CSS library, no client-side router — three TypeScript modules (API client, player logic and PWA glue), one stylesheet and two shared Astro components.
 
 ## Getting started
 
@@ -69,17 +69,26 @@ The service worker caches the app shell, icons and hashed build assets, so the i
 /
 ├── public/
 │   ├── favicon.svg          # echoX play-button icon
-│   └── favicon.ico
+│   ├── favicon.ico
+│   ├── apple-touch-icon.png
+│   ├── icon-192.png         # PWA icons
+│   ├── icon-512.png
+│   ├── icon-maskable-512.png
+│   ├── manifest.webmanifest # app name, colours, icons
+│   └── sw.js                # app-shell service worker
 ├── src/
+│   ├── components/
+│   │   └── TermsArticle.astro # terms copy shared by /terms and the in-app view
 │   ├── layouts/
-│   │   └── Layout.astro     # <head>, meta tags, global styles
+│   │   └── Layout.astro     # <head>, meta tags, install banner
 │   ├── lib/
 │   │   └── api.ts           # Audius, Deezer, iTunes, podcast and radio clients
 │   ├── pages/
 │   │   ├── index.astro      # the player app
-│   │   └── terms.astro      # terms of use, API credits, thank you
+│   │   └── terms.astro      # standalone terms page
 │   ├── scripts/
-│   │   └── app.ts           # all client logic: views, search, detail panel, player
+│   │   ├── app.ts           # all client logic: views, search, detail panel, player
+│   │   └── pwa.ts           # install prompt, service worker, zoom lock
 │   └── styles/
 │       └── global.css       # theme, layout, detail panel, mobile rules
 └── package.json
