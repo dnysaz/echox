@@ -668,7 +668,22 @@ volume.addEventListener('input', () => {
   audio.muted = value === 0;
   if (value > 0) lastVolume = value;
   paintRange(volume, value);
+  syncMuteIcon();
 });
+
+// The paths sit slightly off the viewBox centre, so nudge each set to keep the
+// glyph in the middle of the round button.
+const speakerIcon =
+  '<g transform="translate(1.3 0)"><path d="M4 9.5h3L12 5v14L7 14.5H4z" /><path d="M16 9a4 4 0 0 1 0 6" /></g>';
+const mutedIcon =
+  '<g transform="translate(-0.25 0)"><path d="M4 9.5h3L12 5v14L7 14.5H4z" /><path d="m16.5 9.5 4 4" /><path d="m20.5 9.5-4 4" /></g>';
+
+function syncMuteIcon() {
+  const muted = audio.muted || audio.volume === 0;
+  muteBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${muted ? mutedIcon : speakerIcon}</svg>`;
+  muteBtn.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
+  muteBtn.classList.toggle('muted', muted);
+}
 
 muteBtn.addEventListener('click', () => {
   if (audio.muted || audio.volume === 0) {
@@ -682,6 +697,7 @@ muteBtn.addEventListener('click', () => {
     volume.value = '0';
   }
   paintRange(volume, Number(volume.value));
+  syncMuteIcon();
 });
 
 function toggleLike(track: Track, buttons: HTMLButtonElement[]) {
@@ -1149,6 +1165,7 @@ function renderLibrary() {
 export function init() {
   audio.volume = 0.8;
   paintRange(volume, 0.8);
+  syncMuteIcon();
   paintRange(seek, 0);
   playBtn.innerHTML = playIcon;
   detailPlay.innerHTML = playIcon;

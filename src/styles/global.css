@@ -665,8 +665,7 @@ img { display: block; }
   align-items: center;
   gap: 20px;
   padding: 0 22px;
-  background: rgba(13, 13, 17, .93);
-  backdrop-filter: blur(18px);
+  background: #0b0b0f;
   border-top: 1px solid var(--line);
 }
 
@@ -876,8 +875,7 @@ input[type="range"]::-moz-range-thumb {
     padding: 6px 8px calc(6px + var(--safe));
     border-right: 0;
     border-top: 1px solid var(--line);
-    background: rgba(16, 16, 20, .96);
-    backdrop-filter: blur(14px);
+    background: var(--panel);
     z-index: 60;
   }
   .brand { display: none; }
