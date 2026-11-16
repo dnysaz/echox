@@ -186,6 +186,7 @@ const podcastsHeading = el<HTMLHeadingElement>('podcasts-heading');
 const podcastsHint = el<HTMLParagraphElement>('podcasts-hint');
 const podcastsBack = el<HTMLButtonElement>('podcasts-back');
 const podcastsGrid = el<HTMLDivElement>('podcasts-grid');
+const podcastsMore = el<HTMLButtonElement>('podcasts-more');
 const radioGrid = el<HTMLDivElement>('radio-grid');
 const radioMore = el<HTMLButtonElement>('radio-more');
 const likedGrid = el<HTMLDivElement>('liked-grid');
@@ -2175,6 +2176,12 @@ function showVideoHeading(personalized: boolean) {
 let podcastShowCache: Show[] = [];
 let topRadioCache: Track[] = [];
 
+const PODCAST_PAGE = 20;
+let podcastsShows: Show[] = [];
+let podcastsOffset = 0;
+let podcastsDone = false;
+let podcastsLoading = false;
+
 async function loadPodcastShows(): Promise<Show[]> {
   if (podcastShowCache.length) return podcastShowCache;
   podcastShowCache = await getPodcastShows(12);
@@ -2186,34 +2193,58 @@ function showPodcastChoices() {
   podcastsHeading.textContent = 'Podcasts';
   podcastsHint.hidden = false;
   podcastsHint.textContent = 'Popular series from Apple Podcasts. Tap a show to see its episodes.';
-  renderShowGrid(podcastsGrid, podcastShowCache);
+  renderShowGrid(podcastsGrid, podcastsShows);
+  podcastsMore.hidden = podcastsDone || podcastsShows.length === 0;
 }
 
-async function loadPodcasts() {
-  podcastsBack.hidden = true;
-  podcastsHeading.textContent = 'Podcasts';
-  podcastsHint.hidden = false;
-  podcastsHint.textContent = 'Popular series from Apple Podcasts. Tap a show to see its episodes.';
-  if (podcastShowCache.length) {
+async function loadPodcasts(reset = true) {
+  if (podcastsLoading) return;
+  if (reset && podcastsShows.length) {
     showPodcastChoices();
     return;
   }
-  podcastsGrid.innerHTML = skeletonGrid();
+  if (reset) {
+    podcastsShows = [];
+    podcastsOffset = 0;
+    podcastsDone = false;
+    podcastsGrid.innerHTML = skeletonGrid();
+    podcastsMore.hidden = true;
+  } else if (podcastsDone) {
+    return;
+  }
+
+  podcastsLoading = true;
+  if (!reset) {
+    podcastsMore.disabled = true;
+    podcastsMore.textContent = 'Loading…';
+  }
   try {
-    await loadPodcastShows();
-    if (!podcastShowCache.length) {
+    const batch = await getPodcastShows(PODCAST_PAGE, podcastsOffset);
+    podcastsOffset += batch.length;
+    podcastsShows = [...podcastsShows, ...batch];
+    podcastsDone = batch.length < PODCAST_PAGE;
+    if (!podcastsShows.length) {
+      podcastsDone = true;
       showStatus(podcastsGrid, 'No podcasts available right now.');
-      return;
+    } else {
+      showPodcastChoices();
     }
-    showPodcastChoices();
   } catch {
-    showStatus(podcastsGrid, 'Could not reach Apple Podcasts. Please try again.', true);
+    if (!podcastsShows.length) {
+      showStatus(podcastsGrid, 'Could not reach Apple Podcasts. Please try again.', true);
+    }
+  } finally {
+    podcastsLoading = false;
+    podcastsMore.disabled = false;
+    podcastsMore.textContent = 'Load more shows';
+    podcastsMore.hidden = podcastsDone || podcastsShows.length === 0;
   }
 }
 
 async function openPodcastShow(show: Show) {
   setView('podcasts', 'podcasts');
   podcastsBack.hidden = false;
+  podcastsMore.hidden = true;
   podcastsHeading.textContent = show.title;
   podcastsHint.hidden = false;
   podcastsHint.textContent = show.publisher;
@@ -2232,6 +2263,7 @@ async function openPodcastShow(show: Show) {
 }
 
 podcastsBack.addEventListener('click', () => void loadPodcasts());
+podcastsMore.addEventListener('click', () => void loadPodcasts(false));
 
 async function loadTopRadio(): Promise<Track[]> {
   if (topRadioCache.length) return topRadioCache;

@@ -400,11 +400,40 @@ export async function searchDeezer(query: string, limit = 12): Promise<Track[]> 
   return (data.data ?? []).map(fromDeezer).filter((t): t is Track => t !== null);
 }
 
-export async function searchPodcasts(query: string, limit = 6): Promise<Track[]> {
-  const data = await getJson<{ results?: ItunesPodcast[] }>(
-    `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=podcast&entity=podcastEpisode&limit=${limit}`
-  );
-  return (data?.results ?? []).map(fromPodcast).filter((t): t is Track => t !== null);
+// Apple's podcast catalogue is region-scoped. Asking for the Indonesian store
+// first surfaces local shows that the default (US) results barely rank, such as
+// Close The Door; the global store only tops up when the local one is short.
+const PODCAST_COUNTRY = 'ID';
+
+function fetchPodcastEpisodes(query: string, limit: number, country?: string): Promise<Track[]> {
+  const region = country ? `&country=${country}` : '';
+  return getJson<{ results?: ItunesPodcast[] }>(
+    `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=podcast&entity=podcastEpisode&limit=${limit}${region}`
+  ).then((data) => (data?.results ?? []).map(fromPodcast).filter((t): t is Track => t !== null));
+}
+
+export async function searchPodcasts(query: string, limit = 20): Promise<Track[]> {
+  let local: Track[] = [];
+  let localError: unknown;
+  try {
+    local = await fetchPodcastEpisodes(query, limit, PODCAST_COUNTRY);
+  } catch (error) {
+    localError = error;
+  }
+  if (local.length >= limit) return local;
+
+  let global: Track[] = [];
+  try {
+    global = await fetchPodcastEpisodes(query, limit);
+  } catch (error) {
+    if (!local.length) throw localError ?? error;
+  }
+
+  const unique = new Map<string, Track>();
+  [...local, ...global].forEach((track) => {
+    if (!unique.has(track.src)) unique.set(track.src, track);
+  });
+  return [...unique.values()].slice(0, limit);
 }
 
 export async function searchPodcastShows(query: string, limit = 12): Promise<Show[]> {
@@ -415,11 +444,13 @@ export async function searchPodcastShows(query: string, limit = 12): Promise<Sho
 }
 
 const PODCAST_TOPICS = ['comedy', 'news', 'technology', 'indonesia'];
+const PODCAST_DISCOVERY_LIMIT = 50;
+let podcastDiscovery: Show[] | null = null;
+let podcastDiscoveryPromise: Promise<Show[]> | null = null;
 
-/** A small cross-genre selection of podcast series for discovery. */
-export async function getPodcastShows(limit = 12): Promise<Show[]> {
+async function fetchPodcastDiscovery(): Promise<Show[]> {
   const results = await Promise.allSettled(
-    PODCAST_TOPICS.map((topic) => searchPodcastShows(topic, 4))
+    PODCAST_TOPICS.map((topic) => searchPodcastShows(topic, PODCAST_DISCOVERY_LIMIT))
   );
   const unique = new Map<number, Show>();
   results.forEach((result) => {
@@ -428,7 +459,19 @@ export async function getPodcastShows(limit = 12): Promise<Show[]> {
       if (!unique.has(show.id)) unique.set(show.id, show);
     });
   });
-  return [...unique.values()].slice(0, limit);
+  return [...unique.values()];
+}
+
+/** A cross-genre selection of podcast series, paged for the Podcasts view. */
+export async function getPodcastShows(limit = 20, offset = 0): Promise<Show[]> {
+  if (!podcastDiscovery) {
+    podcastDiscoveryPromise ??= fetchPodcastDiscovery().catch((error) => {
+      podcastDiscoveryPromise = null;
+      throw error;
+    });
+    podcastDiscovery = await podcastDiscoveryPromise;
+  }
+  return podcastDiscovery.slice(offset, offset + limit);
 }
 
 /** Every available episode of one podcast series. */
