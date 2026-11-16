@@ -1,7 +1,16 @@
 export const APP_NAME = 'echox';
 const AUDIUS = 'https://api.audius.co/v1';
+const YOUTUBE_API_KEY = import.meta.env.PUBLIC_YOUTUBE_API_KEY;
+const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
 
-export type Source = 'audius' | 'deezer' | 'itunes' | 'podcast' | 'radio';
+export type Source = 'audius' | 'deezer' | 'itunes' | 'podcast' | 'radio' | 'youtubeVideo';
+
+export type YouTubeVideo = {
+  id: string;
+  title: string;
+  channelTitle?: string;
+  description?: string;
+};
 
 export type Show = {
   id: number;
@@ -33,6 +42,8 @@ export type Track = {
   live?: boolean;
   country?: string;
   countryCode?: string;
+  /** YouTube video id when this track is presented as a music video. */
+  videoId?: string;
 };
 
 type AudiusTrack = {
@@ -617,4 +628,135 @@ export async function getTrackById(trackId: string): Promise<Track | null> {
   }
 
   return null;
+}
+
+type YouTubeSearchItem = {
+  id?: { videoId?: string } | string;
+  snippet?: { title?: string; channelTitle?: string; description?: string };
+  status?: { embeddable?: boolean };
+};
+
+/** Whether the public YouTube API key is configured at build time. */
+export function hasYouTubeApiKey(): boolean {
+  return typeof YOUTUBE_API_KEY === 'string' && YOUTUBE_API_KEY.trim().length > 0;
+}
+
+// YouTube titles come back HTML-escaped ("Tom &amp; Jerry").
+export function decodeEntities(value: string): string {
+  const named: Record<string, string> = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>' };
+  return value.replace(/&(#x?[0-9a-f]+|amp|quot|apos|lt|gt);/gi, (match, code: string) => {
+    if (code[0] === '#') {
+      const hex = code[1]?.toLowerCase() === 'x';
+      const num = Number.parseInt(code.slice(hex ? 2 : 1), hex ? 16 : 10);
+      return Number.isFinite(num) ? String.fromCodePoint(num) : match;
+    }
+    return named[code.toLowerCase()] ?? match;
+  });
+}
+
+function fromYouTubeItem(item: YouTubeSearchItem): YouTubeVideo | null {
+  // `search` returns { videoId }, while `videos` returns a plain id string.
+  const id = typeof item.id === 'string' ? item.id : item.id?.videoId;
+  if (!id) return null;
+  return {
+    id,
+    title: decodeEntities(item.snippet?.title ?? ''),
+    channelTitle: item.snippet?.channelTitle ? decodeEntities(item.snippet.channelTitle) : undefined,
+    description: item.snippet?.description
+      ? decodeEntities(item.snippet.description)
+      : undefined,
+  };
+}
+
+/** Search YouTube videos (used for the "Videos" section and music videos). */
+export async function searchYouTubeVideos(query: string, maxResults = 12): Promise<YouTubeVideo[]> {
+  if (!hasYouTubeApiKey() || !query.trim()) { console.log('YTS early-return', hasYouTubeApiKey(), query); return []; }
+  const params = new URLSearchParams({
+    key: YOUTUBE_API_KEY,
+    q: query,
+    type: 'video',
+    maxResults: String(maxResults),
+    part: 'snippet',
+    // Videos that cannot be embedded would show an error inside our player.
+    videoEmbeddable: 'true',
+    videoSyndicated: 'true',
+  });
+  const data = await getJson<{ items?: YouTubeSearchItem[] }>(
+    `${YOUTUBE_API_BASE}/search?${params.toString()}`
+  );
+  console.log('YTS', query, 'items:', data?.items?.length);
+  return (data?.items ?? [])
+    .map(fromYouTubeItem)
+    .filter((video): video is YouTubeVideo => video !== null);
+}
+
+/**
+ * Most popular music videos on YouTube. This endpoint costs one quota unit,
+ * unlike `search`, so it is the cheap fallback when nothing personal is known.
+ */
+export async function getTrendingMusicVideos(maxResults = 12): Promise<YouTubeVideo[]> {
+  if (!hasYouTubeApiKey()) return [];
+  const params = new URLSearchParams({
+    key: YOUTUBE_API_KEY,
+    part: 'snippet,status',
+    chart: 'mostPopular',
+    videoCategoryId: '10',
+    maxResults: String(maxResults),
+  });
+  const data = await getJson<{ items?: YouTubeSearchItem[] }>(
+    `${YOUTUBE_API_BASE}/videos?${params.toString()}`
+  );
+  return (data?.items ?? [])
+    // The chart endpoint cannot filter server-side, so drop blocked embeds.
+    .filter((item) => item.status?.embeddable !== false)
+    .map(fromYouTubeItem)
+    .filter((video): video is YouTubeVideo => video !== null);
+}
+
+export type YouTubeVideoDetails = {
+  description?: string;
+  viewCount?: string;
+  likeCount?: string;
+  commentCount?: string;
+  publishedAt?: string;
+};
+
+type YouTubeStatsItem = {
+  snippet?: { description?: string; publishedAt?: string };
+  statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
+};
+
+/**
+ * Full description and public counters for one video. `search` only returns a
+ * short snippet, so this costs one extra quota unit (cached by the caller).
+ */
+export async function getYouTubeVideoDetails(videoId: string): Promise<YouTubeVideoDetails | null> {
+  if (!hasYouTubeApiKey() || !videoId) return null;
+  const params = new URLSearchParams({
+    key: YOUTUBE_API_KEY,
+    part: 'snippet,statistics',
+    id: videoId,
+  });
+  const data = await getJson<{ items?: YouTubeStatsItem[] }>(
+    `${YOUTUBE_API_BASE}/videos?${params.toString()}`
+  );
+  const item = data?.items?.[0];
+  if (!item) return null;
+  return {
+    description: item.snippet?.description ? decodeEntities(item.snippet.description) : undefined,
+    viewCount: item.statistics?.viewCount,
+    likeCount: item.statistics?.likeCount,
+    commentCount: item.statistics?.commentCount,
+    publishedAt: item.snippet?.publishedAt,
+  };
+}
+
+/** Find a YouTube music video for a track (title + artist). */
+export async function getMusicVideosFromTrack(track: Track, maxResults = 3): Promise<YouTubeVideo[]> {
+  const query = [track.title, track.artist].filter(Boolean).join(' ');
+  if (!query) return [];
+  const videos = await searchYouTubeVideos(query, maxResults);
+  // Prefer a video whose title contains the track title.
+  const hit = videos.find((v) => v.title.toLowerCase().includes(track.title.trim().toLowerCase())) ?? videos[0];
+  return hit ? [hit] : [];
 }

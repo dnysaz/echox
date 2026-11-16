@@ -1,4 +1,5 @@
 import {
+  decodeEntities,
   formatTime,
   getArtistTracks,
   getPodcastEpisodes,
@@ -7,13 +8,19 @@ import {
   getRadioStations,
   getTrackById,
   getTrending,
+  getTrendingMusicVideos,
+  getYouTubeVideoDetails,
+  hasYouTubeApiKey,
   searchAudius,
   searchDeezer,
   searchItunes,
   searchPodcasts,
   searchRadio,
+  searchYouTubeVideos,
   type Show,
   type Track,
+  type YouTubeVideo,
+  type YouTubeVideoDetails,
 } from '../lib/api';
 
 const LIKED_KEY = 'echox:liked';
@@ -21,10 +28,16 @@ const HISTORY_KEY = 'echox:history';
 const STATS_KEY = 'echox:stats';
 const PLAYING_KEY = 'echox:playing';
 const VOLUME_KEY = 'echox:volume';
+const SEARCHES_KEY = 'echox:searches';
+const VIDEO_CACHE_KEY = 'echox:youtube-videos';
+const VIDEO_DETAILS_KEY = 'echox:youtube-details';
 const HISTORY_MAX = 40;
 const STATS_MAX = 200;
 const LIKED_MAX = 200;
-const TRACK_SOURCES = new Set(['audius', 'deezer', 'itunes', 'podcast', 'radio']);
+const SEARCHES_MAX = 8;
+const VIDEO_CACHE_TTL = 6 * 60 * 60 * 1000;
+const VIDEO_DETAILS_TTL = 24 * 60 * 60 * 1000;
+const TRACK_SOURCES = new Set(['audius', 'deezer', 'itunes', 'podcast', 'radio', 'youtubeVideo']);
 
 const playIcon =
   '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
@@ -47,9 +60,37 @@ const cur = el<HTMLSpanElement>('cur');
 const dur = el<HTMLSpanElement>('dur');
 const volume = el<HTMLInputElement>('volume');
 const muteBtn = el<HTMLButtonElement>('mute-btn');
+let videoMode = false;
+let videoPlaying = false;
+
+type YouTubePlayer = {
+  playVideo: () => void;
+  pauseVideo: () => void;
+  loadVideoById: (videoId: string) => void;
+  getCurrentTime?: () => number;
+  seekTo?: (seconds: number, allowSeekAhead: boolean) => void;
+  destroy?: () => void;
+};
+
+type YouTubeApi = {
+  Player: new (target: HTMLElement, options: Record<string, unknown>) => YouTubePlayer;
+};
+
+let ytPlayer: YouTubePlayer | null = null;
+let fallbackFrame: HTMLIFrameElement | null = null;
+let loadedVideoId: string | null = null;
+let ytApiPromise: Promise<YouTubeApi | null> | null = null;
 
 const detail = el<HTMLElement>('detail');
 const detailArt = el<HTMLDivElement>('detail-art');
+const detailVideoFrame = el<HTMLElement>('detail-video-frame');
+const detailVideoFs = el<HTMLButtonElement>('detail-video-fs');
+const detailVideoInfo = el<HTMLElement>('detail-video-info');
+const detailViews = el<HTMLElement>('detail-views');
+const detailLikes = el<HTMLElement>('detail-likes');
+const detailComments = el<HTMLElement>('detail-comments');
+const detailVideoDesc = el<HTMLParagraphElement>('detail-video-desc');
+const detailVideoLink = el<HTMLAnchorElement>('detail-video-link');
 const detailTitle = el<HTMLHeadingElement>('detail-title');
 const detailArtist = el<HTMLParagraphElement>('detail-artist');
 const detailMeta = el<HTMLSpanElement>('detail-meta');
@@ -88,6 +129,12 @@ const npFactsTitle = el<HTMLHeadingElement>('np-facts-title');
 const npLink = el<HTMLAnchorElement>('np-link');
 const npLike = el<HTMLButtonElement>('np-like');
 const npPlay = el<HTMLButtonElement>('np-play');
+const npVideo = el<HTMLElement>('np-video');
+const npVideoFrame = el<HTMLElement>('np-video-frame');
+const npVideoExpand = el<HTMLButtonElement>('np-video-expand');
+const npVideoFs = el<HTMLButtonElement>('np-video-fs');
+const npVideoPip = el<HTMLButtonElement>('np-video-pip');
+const npBody = document.querySelector<HTMLElement>('.np-body') as HTMLElement;
 const npSeek = el<HTMLInputElement>('np-seek');
 const npCur = el<HTMLSpanElement>('np-cur');
 const npDur = el<HTMLSpanElement>('np-dur');
@@ -98,6 +145,15 @@ const npPrev = el<HTMLButtonElement>('np-prev');
 const npNext = el<HTMLButtonElement>('np-next');
 
 const trendingGrid = el<HTMLDivElement>('trending-grid');
+const videosGrid = el<HTMLDivElement>('videos-grid');
+const videosHeading = el<HTMLHeadingElement>('videos-heading');
+const videosHint = el<HTMLParagraphElement>('videos-hint');
+const homeVideos = el<HTMLDivElement>('home-videos');
+const homeVideosHead = el<HTMLDivElement>('home-videos-head');
+const videoPlayAgain = el<HTMLDivElement>('video-play-again');
+const videoPlayAgainHead = el<HTMLDivElement>('video-play-again-head');
+const videoMostPlayed = el<HTMLDivElement>('video-most-played');
+const videoMostPlayedHead = el<HTMLDivElement>('video-most-played-head');
 const genreChips = el<HTMLDivElement>('genre-chips');
 const searchInput = el<HTMLInputElement>('search-input');
 const searchHeading = el<HTMLHeadingElement>('search-heading');
@@ -107,11 +163,13 @@ const deezerHead = el<HTMLDivElement>('deezer-head');
 const itunesHead = el<HTMLDivElement>('itunes-head');
 const podcastHead = el<HTMLDivElement>('podcast-head');
 const radioHead = el<HTMLDivElement>('radio-head');
+const videoHead = el<HTMLDivElement>('video-head');
 const audiusResults = el<HTMLDivElement>('audius-results');
 const deezerResults = el<HTMLDivElement>('deezer-results');
 const itunesResults = el<HTMLDivElement>('itunes-results');
 const podcastResults = el<HTMLDivElement>('podcast-results');
 const radioResults = el<HTMLDivElement>('radio-results');
+const videoResults = el<HTMLDivElement>('video-results');
 const homePlayAgainHead = el<HTMLDivElement>('home-play-again-head');
 const homePlayAgain = el<HTMLDivElement>('home-play-again');
 const homePodcastsHead = el<HTMLDivElement>('home-podcasts-head');
@@ -184,6 +242,7 @@ function loadLiked(): [string, Track][] {
     return list
       .filter(isTrack)
       .slice(-LIKED_MAX)
+      .map((track) => normalizeTrack(track))
       .map((track) => [track.id, track] as [string, Track]);
   } catch {
     return [];
@@ -213,6 +272,22 @@ function saveVolume(value: number) {
   }
 }
 
+function loadSearches(): string[] {
+  const raw = readStore<string[]>(SEARCHES_KEY, []);
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is string => typeof item === 'string' && item.trim().length > 1);
+}
+
+function saveSearch(query: string) {
+  const recent = loadSearches().filter((item) => item.toLowerCase() !== query.toLowerCase());
+  recent.unshift(query);
+  try {
+    localStorage.setItem(SEARCHES_KEY, JSON.stringify(recent.slice(0, SEARCHES_MAX)));
+  } catch {
+    /* storage blocked: recommendations just use the in-memory history */
+  }
+}
+
 function readStore<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -220,6 +295,15 @@ function readStore<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+// Entities were stored before YouTube titles were decoded; clean them on read.
+function normalizeTrack(track: Track): Track {
+  return {
+    ...track,
+    title: decodeEntities(track.title),
+    artist: decodeEntities(track.artist),
+  };
 }
 
 function isTrack(value: unknown): value is Track {
@@ -239,7 +323,8 @@ function loadHistory(): HistoryEntry[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((entry) => entry && isTrack(entry.track) && typeof entry.playedAt === 'number')
-    .slice(0, HISTORY_MAX);
+    .slice(0, HISTORY_MAX)
+    .map((entry) => ({ ...entry, track: normalizeTrack(entry.track) }));
 }
 
 function loadStats(): [string, PlayStat][] {
@@ -247,6 +332,7 @@ function loadStats(): [string, PlayStat][] {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((stat) => stat && isTrack(stat.track) && stat.count > 0)
+    .map((stat) => ({ ...stat, track: normalizeTrack(stat.track) }))
     .map((stat) => [stat.track.id, stat] as [string, PlayStat]);
 }
 
@@ -295,6 +381,8 @@ function savePlayback(force = false) {
 function restorePlayback() {
   const saved = readStore<SavedPlayback | null>(PLAYING_KEY, null);
   if (!saved || !isTrack(saved.track)) return;
+  // A video waiting for a click should not start itself on page load.
+  if (saved.track.videoId) return;
 
   const tracks = Array.isArray(saved.queue) ? saved.queue.filter(isTrack) : [];
   let list = tracks.length ? tracks : [saved.track];
@@ -359,7 +447,11 @@ function recordPlay(track: Track) {
   saveStats();
 
   if (currentView === 'library') renderLibrary();
-  if (currentView === 'home') renderHomePlayAgain();
+  if (currentView === 'home') {
+    renderHomePlayAgain();
+    renderHomeVideos();
+  }
+  if (currentView === 'videos') renderVideoLibrary();
 }
 
 function skeletonGrid(count = 6): string {
@@ -420,6 +512,8 @@ function sourceBadge(track: Track): { label: string; className: string } {
       return { label: 'LIVE', className: ' live' };
     case 'podcast':
       return { label: 'PODCAST', className: ' podcast' };
+    case 'youtubeVideo':
+      return { label: 'VIDEO', className: '' };
     default:
       return { label: 'PREVIEW', className: ' preview' };
   }
@@ -433,6 +527,7 @@ function sourceMeta(track: Track, short = false): string {
         itunes: 'APPLE MUSIC · 30S PREVIEW',
         podcast: 'APPLE PODCASTS · EPISODE',
         radio: 'LIVE RADIO',
+        youtubeVideo: 'YouTube · music video',
       }
     : {
         audius: 'Audius · full track',
@@ -440,6 +535,7 @@ function sourceMeta(track: Track, short = false): string {
         itunes: 'Apple Music · 30s preview',
         podcast: 'Apple Podcasts · episode',
         radio: 'Live radio',
+        youtubeVideo: 'YouTube · music video',
       };
   return labels[track.source];
 }
@@ -509,11 +605,12 @@ function renderShowGrid(container: HTMLElement, shows: Show[]) {
 }
 
 function syncPlayingCards() {
+  const activePlaying = videoMode ? videoPlaying : !audio.paused;
   document.querySelectorAll<HTMLElement>('.card').forEach((card) => {
     card.classList.toggle('playing', card.dataset.trackId === current?.id);
     const play = card.querySelector<HTMLElement>('.card-play');
     if (play) {
-      play.innerHTML = card.classList.contains('playing') && !audio.paused ? pauseIcon : playIcon;
+      play.innerHTML = card.classList.contains('playing') && activePlaying ? pauseIcon : playIcon;
     }
   });
   // Detail, history and queue rows share the same playing state as the cards.
@@ -521,7 +618,7 @@ function syncPlayingCards() {
     const playing = row.dataset.trackId === current?.id;
     row.classList.toggle('playing', playing);
     const play = row.querySelector<HTMLElement>('.row-play');
-    if (play) play.innerHTML = playing && !audio.paused ? pauseIcon : playIcon;
+    if (play) play.innerHTML = playing && activePlaying ? pauseIcon : playIcon;
   });
 }
 
@@ -545,7 +642,9 @@ async function openDetail(track: Track) {
       ? track.countryCode
         ? await getRadioByCountry(track.countryCode)
         : []
-      : await getArtistTracks(track);
+      : isVideoTrack(track)
+        ? await relatedVideoTracks(track)
+        : await getArtistTracks(track);
     if (detailKey !== key || !detailOpen) return;
     // A live station lists the other stations from its own region.
     const list = isRadio ? tracks.filter((item) => item.id !== track.id) : tracks;
@@ -576,7 +675,101 @@ function setDetailBackdrop(url: string) {
   probe.src = url;
 }
 
+type VideoDetailsStore = Record<string, { savedAt: number; details: YouTubeVideoDetails }>;
+let videoDetailsStore: VideoDetailsStore | null = null;
+let detailInfoVideoId: string | null = null;
+
+function videoDetailsCache(): VideoDetailsStore {
+  if (!videoDetailsStore) {
+    videoDetailsStore = readStore<VideoDetailsStore>(VIDEO_DETAILS_KEY, {});
+  }
+  return videoDetailsStore;
+}
+
+function readVideoDetailsCache(videoId: string): YouTubeVideoDetails | null {
+  const entry = videoDetailsCache()[videoId];
+  if (!entry || Date.now() - entry.savedAt > VIDEO_DETAILS_TTL) return null;
+  return entry.details;
+}
+
+function writeVideoDetailsCache(videoId: string, details: YouTubeVideoDetails) {
+  const store = videoDetailsCache();
+  store[videoId] = { savedAt: Date.now(), details };
+  const ids = Object.keys(store);
+  if (ids.length > 60) {
+    ids
+      .sort((a, b) => store[a].savedAt - store[b].savedAt)
+      .slice(0, ids.length - 60)
+      .forEach((id) => delete store[id]);
+  }
+  try {
+    localStorage.setItem(VIDEO_DETAILS_KEY, JSON.stringify(store));
+  } catch {
+    /* storage blocked: details still last for this visit */
+  }
+}
+
+function compactCount(value?: string): string | undefined {
+  if (!value) return undefined;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return undefined;
+  const short = (n: number) => n.toFixed(1).replace(/\.0$/, '');
+  if (num >= 1e9) return `${short(num / 1e9)}B`;
+  if (num >= 1e6) return `${short(num / 1e6)}M`;
+  if (num >= 1e3) return `${short(num / 1e3)}K`;
+  return num.toLocaleString('en-US');
+}
+
+function applyVideoDetails(details: YouTubeVideoDetails) {
+  detailViews.textContent = compactCount(details.viewCount) ?? '—';
+  detailLikes.textContent = compactCount(details.likeCount) ?? '—';
+  detailComments.textContent = compactCount(details.commentCount) ?? '—';
+  const description = details.description?.trim();
+  detailVideoDesc.textContent = description || 'No description for this video.';
+  detailVideoDesc.classList.toggle('is-empty', !description);
+}
+
+async function renderVideoInfo(track: Track) {
+  const videoId = track.videoId;
+  if (!videoId) {
+    detailInfoVideoId = null;
+    detailVideoInfo.hidden = true;
+    return;
+  }
+
+  detailInfoVideoId = videoId;
+  detailVideoInfo.hidden = false;
+  detailVideoLink.href = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+  detailViews.textContent = '—';
+  detailLikes.textContent = '—';
+  detailComments.textContent = '—';
+  const fallback = track.description?.trim();
+  detailVideoDesc.textContent = fallback || 'Loading description…';
+  detailVideoDesc.classList.toggle('is-empty', !fallback);
+
+  const cached = readVideoDetailsCache(videoId);
+  if (cached) {
+    applyVideoDetails(cached);
+    return;
+  }
+
+  try {
+    const details = await getYouTubeVideoDetails(videoId);
+    if (!details || detailInfoVideoId !== videoId) return;
+    writeVideoDetailsCache(videoId, details);
+    applyVideoDetails(details);
+  } catch {
+    if (detailInfoVideoId === videoId && !fallback) {
+      detailVideoDesc.textContent = 'Description is not available right now.';
+      detailVideoDesc.classList.add('is-empty');
+    }
+  }
+}
+
 function renderDetailHead(track: Track) {
+  detail.classList.toggle('is-video', Boolean(track.videoId));
+  void syncVideoPreview();
+  void renderVideoInfo(track);
   detailArt.innerHTML = coverMarkup(track, 'lg');
   setDetailBackdrop(track.artwork);
   detailTitle.textContent = track.title;
@@ -584,13 +777,14 @@ function renderDetailHead(track: Track) {
   detailArtistName.textContent = track.live ? track.country || track.artist : track.artist;
   detailListPrefix.textContent = track.live ? 'Other live stations in' : 'More from';
   detailMeta.textContent = sourceMeta(track);
-  detailPlay.innerHTML = audio.paused ? playIcon : pauseIcon;
-  detailPlay.setAttribute('aria-label', audio.paused ? 'Play' : 'Pause');
+  const playing = videoMode ? videoPlaying : !audio.paused;
+  detailPlay.innerHTML = playing ? pauseIcon : playIcon;
+  detailPlay.setAttribute('aria-label', playing ? 'Pause' : 'Play');
   detailLike.classList.toggle('liked', liked.has(track.id));
 }
 
 function renderDetailList(active: Track) {
-  const unit = active.live ? 'station' : 'song';
+  const unit = active.live ? 'station' : active.videoId ? 'video' : 'song';
   detailCount.textContent = `${detailTracks.length} ${detailTracks.length === 1 ? unit : `${unit}s`}`;
   detailList.innerHTML = '';
   detailTracks.forEach((track, i) => {
@@ -606,7 +800,7 @@ function renderDetailList(active: Track) {
         <span class="row-title">${escapeHtml(track.title)}</span>
         <span class="row-artist">${escapeHtml(track.artist)}</span>
       </span>
-      <span class="row-dur">${track.live ? 'LIVE' : formatTime(track.duration)}</span>
+      <span class="row-dur">${track.live ? 'LIVE' : track.videoId ? '' : formatTime(track.duration)}</span>
       <span class="row-play">${playIcon}</span>
     `;
     row.addEventListener('click', () => {
@@ -620,6 +814,7 @@ function renderDetailList(active: Track) {
 
 function closeDetail() {
   detailOpen = false;
+  stopVideoPreview();
   detail.hidden = true;
   detailKey = null;
   // Drop the cached artist list so reopening the panel always matches the
@@ -648,7 +843,7 @@ function renderNowPlaying(track: Track) {
   npShare.disabled = false;
   npLike.classList.toggle('liked', liked.has(track.id));
   npDetail.textContent = track.live ? 'More live stations in this country' : 'More from this artist';
-  npProgress.hidden = track.live === true;
+  npProgress.hidden = track.live === true || !!track.videoId;
   npCur.textContent = '0:00';
   npDur.textContent = track.live ? 'LIVE' : formatTime(track.duration);
   paintRange(npSeek, 0);
@@ -676,6 +871,10 @@ function renderNowPlaying(track: Track) {
 }
 
 function syncNowPlaying() {
+  if (videoMode) {
+    syncVideoUi();
+    return;
+  }
   const playing = !audio.paused;
   npPlay.innerHTML = playing ? pauseIcon : playIcon;
   npPlay.setAttribute('aria-label', playing ? 'Pause' : 'Play');
@@ -685,6 +884,10 @@ let npReturnFocus: HTMLElement | null = null;
 
 function openNowPlaying() {
   if (!current) return;
+  if (pipMode) setPip(false);
+  // The big player takes over the video; drop the muted card preview.
+  stopVideoPreview();
+  np.classList.remove('is-closing');
   renderNowPlaying(current);
   npReturnFocus =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -693,12 +896,34 @@ function openNowPlaying() {
   npClose.focus({ preventScroll: true });
 }
 
+let npClosing = false;
+
 function closeNowPlaying() {
-  if (np.hidden) return;
-  np.hidden = true;
-  document.body.classList.remove('np-open');
-  npReturnFocus?.focus({ preventScroll: true });
-  npReturnFocus = null;
+  if (np.hidden || npClosing) return;
+  if (pipMode) setPip(false);
+  npClosing = true;
+  np.classList.add('is-closing');
+
+  const finish = () => {
+    if (!npClosing) return;
+    npClosing = false;
+    np.classList.remove('is-closing');
+    np.hidden = true;
+    document.body.classList.remove('np-open');
+    npReturnFocus?.focus({ preventScroll: true });
+    npReturnFocus = null;
+    // Back on the page: bring the muted card preview back, in sync.
+    void syncVideoPreview();
+  };
+
+  const sheet = np.querySelector('.np-sheet');
+  if (!sheet) {
+    finish();
+    return;
+  }
+  // Slide the page back down, with a timer in case the animation is skipped.
+  sheet.addEventListener('animationend', finish, { once: true });
+  window.setTimeout(finish, 400);
 }
 
 // Reopen the artist list the current song was started from (e.g. after
@@ -823,7 +1048,6 @@ function playQueue(list: Track[], position: number) {
 
 function loadTrack(track: Track, autoplay: boolean) {
   current = track;
-  audio.src = track.src;
   player.classList.remove('disabled');
   nowTitle.textContent = track.title;
   nowArtist.textContent = track.artist;
@@ -835,19 +1059,33 @@ function loadTrack(track: Track, autoplay: boolean) {
   playerShare.disabled = false;
   likeBtn.classList.toggle('liked', liked.has(track.id));
   const live = track.live === true;
-  cur.textContent = live ? '' : '0:00';
+  const isVideo = typeof track.videoId === 'string' && track.videoId.length > 0;
+  if (isVideo) {
+    // Stop the audio element before the video takes over, and never leave it
+    // pointing at an empty source (that fires a misleading stream error).
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    void startYouTubePlayer(track.videoId as string);
+  } else {
+    exitVideoMode();
+    audio.src = track.src;
+  }
+  cur.textContent = live || isVideo ? '' : '0:00';
   seek.value = '0';
-  seek.disabled = live;
+  seek.disabled = live || isVideo;
   paintRange(seek, 0);
-  dur.textContent = live ? 'LIVE' : formatTime(track.duration);
+  dur.textContent = live ? 'LIVE' : isVideo ? '' : formatTime(track.duration);
   syncPlayingCards();
   onTrackChanged(track);
   savePlayback(true);
   if (autoplay) {
     recordPlay(track);
-    void audio.play().catch(() => {
-      nowSrc.textContent = 'PLAYBACK FAILED · TRY ANOTHER SONG';
-    });
+    if (!isVideo) {
+      void audio.play().catch(() => {
+        nowSrc.textContent = 'PLAYBACK FAILED · TRY ANOTHER SONG';
+      });
+    }
   }
 }
 
@@ -856,9 +1094,297 @@ function togglePlay() {
     if (queue.length) loadTrack(queue[0], true);
     return;
   }
+  if (videoMode) {
+    toggleVideoPlay();
+    return;
+  }
   if (audio.paused) void audio.play().catch(() => {});
   else audio.pause();
 }
+
+function loadYouTubeApi(): Promise<YouTubeApi | null> {
+  const w = window as unknown as { YT?: YouTubeApi; onYouTubeIframeAPIReady?: () => void };
+  if (w.YT?.Player) return Promise.resolve(w.YT);
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve) => {
+    // The iframe API calls this global once it is ready; if it never loads
+    // (blocked network, extension) fall back to a plain embed.
+    const previous = w.onYouTubeIframeAPIReady;
+    const timer = window.setTimeout(() => resolve(w.YT?.Player ? w.YT : null), 8000);
+    w.onYouTubeIframeAPIReady = () => {
+      window.clearTimeout(timer);
+      previous?.();
+      resolve(w.YT?.Player ? w.YT : null);
+    };
+    // Load it as a classic script: the iframe API is not an ES module, and
+    // importing the URL as one can leave `window.YT` undefined.
+    if (!document.querySelector('script[data-youtube-api]')) {
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.async = true;
+      script.dataset.youtubeApi = '';
+      document.head.append(script);
+    }
+  });
+  return ytApiPromise;
+}
+
+function clearVideoPlayer() {
+  try {
+    ytPlayer?.destroy?.();
+  } catch {
+    /* the player may already be gone */
+  }
+  ytPlayer = null;
+  fallbackFrame = null;
+  loadedVideoId = null;
+  npVideoFrame.innerHTML = '';
+}
+
+// Muted copy of the current video shown in the "Now playing" card while the
+// full-screen player is closed; the hidden main player keeps the audio.
+let previewPlayer: YouTubePlayer | null = null;
+let previewVideoId: string | null = null;
+
+function stopVideoPreview() {
+  try {
+    previewPlayer?.destroy?.();
+  } catch {
+    /* the preview may already be gone */
+  }
+  previewPlayer = null;
+  previewVideoId = null;
+  detailVideoFrame.innerHTML = '';
+}
+
+async function syncVideoPreview() {
+  const videoId = current?.videoId;
+  const shouldShow = videoMode && detailOpen && np.hidden && typeof videoId === 'string';
+  if (!shouldShow) {
+    if (previewPlayer || previewVideoId) stopVideoPreview();
+    return;
+  }
+
+  if (previewPlayer && previewVideoId === videoId) {
+    if (videoPlaying) previewPlayer.playVideo();
+    else previewPlayer.pauseVideo();
+    return;
+  }
+
+  stopVideoPreview();
+  const startAt = ytPlayer?.getCurrentTime?.() ?? 0;
+  const api = await loadYouTubeApi();
+  if (!videoMode || !detailOpen || !np.hidden || current?.videoId !== videoId) return;
+  if (!api) return;
+
+  const host = document.createElement('div');
+  detailVideoFrame.append(host);
+  previewVideoId = videoId;
+  previewPlayer = new api.Player(host, {
+    videoId,
+    playerVars: {
+      autoplay: 0,
+      mute: 1,
+      controls: 0,
+      rel: 0,
+      modestbranding: 1,
+      playsinline: 1,
+      disablekb: 1,
+      iv_load_policy: 3,
+    },
+    events: {
+      onReady: (event: { target: YouTubePlayer }) => {
+        if (startAt > 1) event.target.seekTo?.(startAt, true);
+        if (videoPlaying) event.target.playVideo();
+      },
+    },
+  });
+}
+
+function createYouTubePlayer(api: YouTubeApi, videoId: string) {
+  clearVideoPlayer();
+  const host = document.createElement('div');
+  npVideoFrame.append(host);
+  loadedVideoId = videoId;
+  ytPlayer = new api.Player(host, {
+    videoId,
+    playerVars: {
+      autoplay: 1,
+      rel: 0,
+      modestbranding: 1,
+      playsinline: 1,
+      origin: location.origin,
+    },
+    events: {
+      onReady: (event: { target: YouTubePlayer }) => {
+        videoPlaying = true;
+        event.target.playVideo();
+        syncVideoUi();
+        syncPlayingCards();
+      },
+      onStateChange: (event: { data: number }) => {
+        // 0 = ended, 1 = playing, 2 = paused.
+        if (event.data === 1) videoPlaying = true;
+        else if (event.data === 0 || event.data === 2) videoPlaying = false;
+        else return;
+        syncVideoUi();
+        syncPlayingCards();
+        if (event.data === 0) {
+          // Advance the queue like the audio player does once the video ends.
+          window.setTimeout(() => {
+            if (videoMode && current?.videoId && index + 1 < queue.length) step(1);
+          }, 0);
+        }
+      },
+    },
+  });
+}
+
+function createFallbackPlayer(videoId: string) {
+  clearVideoPlayer();
+  const frame = document.createElement('iframe');
+  frame.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
+  frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+  frame.allowFullscreen = true;
+  frame.title = 'Now playing video';
+  npVideoFrame.append(frame);
+  fallbackFrame = frame;
+  loadedVideoId = videoId;
+}
+
+function iframeCommand(func: 'playVideo' | 'pauseVideo') {
+  fallbackFrame?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args: [] }), '*');
+}
+
+async function startYouTubePlayer(videoId: string) {
+  videoMode = true;
+  videoPlaying = true;
+  npVideo.hidden = false;
+  np.classList.add('video-mode');
+  npBody.classList.add('video-mode');
+  syncVideoUi();
+  void syncVideoPreview();
+
+  if (loadedVideoId === videoId) {
+    // The same video is already mounted: just resume it.
+    if (ytPlayer) ytPlayer.playVideo();
+    else iframeCommand('playVideo');
+    return;
+  }
+
+  clearVideoPlayer();
+  const api = await loadYouTubeApi();
+  // The user may have switched tracks while the API was loading.
+  if (!videoMode || current?.videoId !== videoId) return;
+  if (api) createYouTubePlayer(api, videoId);
+  else createFallbackPlayer(videoId);
+}
+
+function exitVideoMode() {
+  const wasPip = pipMode;
+  videoMode = false;
+  videoPlaying = false;
+  setExpanded(false);
+  setPip(false);
+  stopVideoPreview();
+  np.classList.remove('video-mode');
+  npBody.classList.remove('video-mode');
+  npVideo.hidden = true;
+  if (document.fullscreenElement === npVideo) void document.exitFullscreen().catch(() => {});
+  clearVideoPlayer();
+  // Leaving pip means the next track should not reopen the full player.
+  if (wasPip) closeNowPlaying();
+}
+
+function toggleVideoPlay() {
+  if (!videoMode || !current?.videoId) return;
+  videoPlaying = !videoPlaying;
+  if (videoPlaying) {
+    if (ytPlayer) ytPlayer.playVideo();
+    else if (fallbackFrame) iframeCommand('playVideo');
+    else void startYouTubePlayer(current.videoId);
+  } else if (ytPlayer) {
+    ytPlayer.pauseVideo();
+  } else {
+    iframeCommand('pauseVideo');
+  }
+  syncVideoUi();
+  syncPlayingCards();
+  void syncVideoPreview();
+}
+
+function syncVideoUi() {
+  const label = videoPlaying ? 'Pause' : 'Play';
+  const icon = videoPlaying ? pauseIcon : playIcon;
+  playBtn.innerHTML = icon;
+  playBtn.setAttribute('aria-label', label);
+  if (detailOpen) {
+    detailPlay.innerHTML = icon;
+    detailPlay.setAttribute('aria-label', label);
+  }
+  npPlay.innerHTML = icon;
+  npPlay.setAttribute('aria-label', label);
+}
+
+// Real fullscreen for the video; iOS Safari has no element fullscreen, so the
+// button is hidden there and YouTube's own fullscreen control takes over.
+if (typeof npVideo.requestFullscreen !== 'function') npVideoFs.hidden = true;
+npVideoFs.addEventListener('click', () => {
+  if (document.fullscreenElement === npVideo) {
+    void document.exitFullscreen().catch(() => {});
+    return;
+  }
+  if (typeof npVideo.requestFullscreen === 'function') {
+    void npVideo.requestFullscreen().catch(() => {});
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  const active = document.fullscreenElement === npVideo;
+  npVideo.classList.toggle('is-fullscreen', active);
+  npVideoFs.classList.toggle('is-on', active);
+  npVideoFs.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Fullscreen video');
+});
+
+function setExpanded(expanded: boolean) {
+  npVideo.classList.toggle('is-expanded', expanded);
+  npVideoExpand.classList.toggle('is-on', expanded);
+  npVideoExpand.setAttribute('aria-label', expanded ? 'Shrink video' : 'Enlarge video');
+}
+
+let pipMode = false;
+
+// Picture in picture for a cross-origin YouTube iframe: the browser PiP API
+// cannot take over the player, so now playing itself shrinks into a floating
+// video window while the rest of the page stays usable.
+function setPip(active: boolean) {
+  pipMode = active;
+  np.classList.toggle('is-pip', active);
+  npVideoPip.classList.toggle('is-on', active);
+  npVideoPip.setAttribute('aria-label', active ? 'Exit picture in picture' : 'Picture in picture');
+  np.setAttribute('aria-modal', active ? 'false' : 'true');
+  document.body.classList.toggle('np-open', !active && !np.hidden);
+}
+
+npVideoExpand.addEventListener('click', () => {
+  if (pipMode) setPip(false);
+  setExpanded(!npVideo.classList.contains('is-expanded'));
+});
+
+npVideoPip.addEventListener('click', () => {
+  if (!pipMode) {
+    setExpanded(false);
+    if (document.fullscreenElement === npVideo) void document.exitFullscreen().catch(() => {});
+  }
+  setPip(!pipMode);
+});
+
+// Fullscreen from the card goes to the real player (and then native fullscreen).
+detailVideoFs.addEventListener('click', () => {
+  openNowPlaying();
+  if (typeof npVideo.requestFullscreen === 'function') {
+    void npVideo.requestFullscreen().catch(() => {});
+  }
+});
 
 function step(delta: number) {
   if (!queue.length) return;
@@ -868,6 +1394,8 @@ function step(delta: number) {
 }
 
 audio.addEventListener('play', () => {
+  // Video playback owns the transport controls; the audio element is idle.
+  if (videoMode) return;
   if (current) nowSrc.textContent = sourceMeta(current, true);
   savePlayback(true);
   syncVibe();
@@ -882,6 +1410,7 @@ audio.addEventListener('play', () => {
 });
 
 audio.addEventListener('pause', () => {
+  if (videoMode) return;
   savePlayback(true);
   syncVibe();
   syncNowPlaying();
@@ -1133,7 +1662,7 @@ document.addEventListener('keydown', (event) => {
 
 /* ---------------- Views ---------------- */
 
-const views = ['home', 'search', 'library', 'podcasts', 'radio', 'terms'] as const;
+const views = ['home', 'search', 'videos', 'library', 'podcasts', 'radio', 'terms'] as const;
 type View = (typeof views)[number];
 
 let currentView: View = 'home';
@@ -1143,12 +1672,15 @@ let searchReturn: View = 'home';
 
 // Searching from Podcasts or Radio limits the results to that source; from
 // anywhere else every source is searched, songs first.
-type SearchScope = 'all' | 'podcast' | 'radio';
+type SearchScope = 'all' | 'podcast' | 'radio' | 'video';
 let searchScope: SearchScope = 'all';
 
+// The search field follows the page it was opened from: Videos searches only
+// YouTube, radio only stations, podcasts only episodes, and Home searches all.
 function scopeFromView(view: View): SearchScope {
   if (view === 'podcasts') return 'podcast';
   if (view === 'radio') return 'radio';
+  if (view === 'videos') return 'video';
   return 'all';
 }
 
@@ -1156,6 +1688,7 @@ function applySearchScope() {
   const songs = searchScope === 'all';
   const podcasts = searchScope === 'all' || searchScope === 'podcast';
   const radio = searchScope === 'all' || searchScope === 'radio';
+  const videos = searchScope === 'all' || searchScope === 'video';
 
   audiusHead.hidden = !songs;
   deezerHead.hidden = !songs;
@@ -1167,19 +1700,25 @@ function applySearchScope() {
   podcastResults.hidden = !podcasts;
   radioHead.hidden = !radio;
   radioResults.hidden = !radio;
+  videoHead.hidden = !videos;
+  videoResults.hidden = !videos;
 
   searchInput.placeholder =
     searchScope === 'podcast'
       ? 'Search podcast episodes…'
       : searchScope === 'radio'
         ? 'Search live radio…'
-        : 'Search songs, artists, genres…';
+        : searchScope === 'video'
+          ? 'Search YouTube videos…'
+          : 'Search songs, artists, genres…';
   searchHint.textContent =
     searchScope === 'podcast'
       ? 'Type at least 2 characters to search podcast episodes.'
       : searchScope === 'radio'
         ? 'Type at least 2 characters to search live radio stations.'
-        : 'Type at least 2 characters to search full tracks, Deezer and iTunes previews, podcast episodes and live radio.';
+        : searchScope === 'video'
+          ? 'Type at least 2 characters to search YouTube music videos.'
+          : 'Type at least 2 characters to search full tracks, Deezer and iTunes previews, podcast episodes, live radio and videos.';
 }
 
 // On mobile the top bar shows the EchoX title plus a magnifier; the search
@@ -1200,7 +1739,9 @@ function setView(view: View, nav?: string) {
         ? 'Podcasts | echoX'
         : view === 'radio'
           ? 'Live radio | echoX'
-          : 'echoX | Free online music';
+          : view === 'videos'
+            ? 'Videos | echoX'
+            : 'echoX | Free online music';
   views.forEach((name) => {
     el<HTMLElement>(`view-${name}`).hidden = name !== view;
   });
@@ -1270,6 +1811,8 @@ document.querySelectorAll<HTMLElement>('[data-view]').forEach((btn) => {
       setView(view, btn.dataset.nav);
       if (view === 'podcasts') void loadPodcasts();
       if (view === 'radio') void loadRadio();
+      if (view === 'videos') void loadVideos();
+      if (view === 'home') renderHomeVideos();
     }
     closeDetail();
     if (btn.dataset.section) scrollToLibrarySection(btn.dataset.section);
@@ -1315,6 +1858,7 @@ document.querySelectorAll<HTMLAnchorElement>('.brand, .mobile-brand').forEach((l
   link.addEventListener('click', (event) => {
     event.preventDefault();
     setView('home');
+    renderHomeVideos();
     closeDetail();
     window.scrollTo({ top: 0 });
   });
@@ -1323,6 +1867,7 @@ document.querySelectorAll<HTMLAnchorElement>('.brand, .mobile-brand').forEach((l
 /* ---------------- Home ---------------- */
 
 async function loadHome() {
+  renderHomeVideos();
   trendingGrid.innerHTML = skeletonGrid();
   try {
     const tracks = await getTrending(18);
@@ -1335,6 +1880,202 @@ async function loadHome() {
   } catch {
     showStatus(trendingGrid, 'Could not reach Audius. Check your connection and reload.', true);
   }
+}
+
+/* ---------------- YouTube videos ---------------- */
+
+interface VideoCache {
+  savedAt: number;
+  seed: string;
+  tracks: Track[];
+}
+
+// The recommendations currently rendered on the Videos page, reused by the
+// "More from <channel>" list so both show the same set of videos.
+let recommendedVideoTracks: Track[] = [];
+
+function isVideoTrack(value: unknown): value is Track {
+  const track = value as Partial<Track> | null;
+  return (
+    !!track &&
+    track.source === 'youtubeVideo' &&
+    typeof track.id === 'string' &&
+    typeof track.title === 'string' &&
+    typeof track.videoId === 'string'
+  );
+}
+
+function videoToTrack(video: YouTubeVideo): Track {
+  return {
+    id: `youtubeVideo:${video.id}`,
+    title: video.title,
+    artist: video.channelTitle || 'YouTube',
+    artwork: `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+    duration: 0,
+    src: '',
+    source: 'youtubeVideo',
+    description: video.description,
+    videoId: video.id,
+  };
+}
+
+/** Up to 10 distinct videos the user has already watched on this device. */
+function watchedVideos(): Track[] {
+  const seen = new Set<string>();
+  const tracks: Track[] = [];
+  history.forEach((entry) => {
+    const track = entry.track;
+    if (!isVideoTrack(track) || seen.has(track.id)) return;
+    seen.add(track.id);
+    tracks.push(track);
+  });
+  return tracks.slice(0, 10);
+}
+
+function renderHomeVideos() {
+  const tracks = watchedVideos();
+  homeVideosHead.hidden = tracks.length === 0;
+  homeVideos.hidden = tracks.length === 0;
+  homeVideos.innerHTML = '';
+  if (tracks.length) renderGrid(homeVideos, tracks);
+}
+
+/** Video-only "Play again" and "Mostly played" rows on the Videos page. */
+async function relatedVideoTracks(track: Track): Promise<Track[]> {
+  let pool = recommendedVideoTracks;
+  if (!pool.length) {
+    try {
+      const videos = await searchYouTubeVideos(track.artist || track.title, 10);
+      pool = videos.map(videoToTrack);
+    } catch {
+      pool = [];
+    }
+  }
+  const seen = new Set<string>();
+  const list: Track[] = [];
+  const add = (item: Track) => {
+    if (!isVideoTrack(item) || seen.has(item.id)) return;
+    seen.add(item.id);
+    list.push(item);
+  };
+  add(track);
+  pool.forEach(add);
+  return list;
+}
+
+function renderVideoLibrary() {
+  const watched = watchedVideos();
+  videoPlayAgainHead.hidden = watched.length === 0;
+  videoPlayAgain.hidden = watched.length === 0;
+  videoPlayAgain.innerHTML = '';
+  if (watched.length) renderGrid(videoPlayAgain, watched);
+
+  const mostPlayed = [...stats.values()]
+    .filter((stat) => isVideoTrack(stat.track))
+    .sort((a, b) => b.count - a.count || b.lastPlayed - a.lastPlayed)
+    .slice(0, 8)
+    .map((stat) => stat.track);
+  videoMostPlayedHead.hidden = mostPlayed.length === 0;
+  videoMostPlayed.hidden = mostPlayed.length === 0;
+  videoMostPlayed.innerHTML = '';
+  if (mostPlayed.length) renderGrid(videoMostPlayed, mostPlayed);
+}
+
+/** Search queries and played tracks used as YouTube recommendation seeds. */
+function videoQueries(): string[] {
+  const seeds: string[] = [];
+  const add = (value: string) => {
+    const query = value.replace(/\s+/g, ' ').trim();
+    if (query.length < 2) return;
+    if (seeds.some((seed) => seed.toLowerCase() === query.toLowerCase())) return;
+    seeds.push(query);
+  };
+
+  loadSearches().forEach(add);
+  [...stats.values()]
+    .sort((a, b) => b.count - a.count || b.lastPlayed - a.lastPlayed)
+    .forEach((stat) => add(`${stat.track.title} ${stat.track.artist}`));
+  history.forEach((entry) => add(`${entry.track.title} ${entry.track.artist}`));
+
+  // Two queries keep the search quota bill at 200 units per refresh.
+  return seeds.slice(0, 2);
+}
+
+async function collectVideos(queries: string[]): Promise<YouTubeVideo[]> {
+  const results = await Promise.allSettled(queries.map((query) => searchYouTubeVideos(query, 5)));
+  const seen = new Set<string>();
+  const videos: YouTubeVideo[] = [];
+  results.forEach((result) => {
+    if (result.status !== 'fulfilled') return;
+    result.value.forEach((video) => {
+      if (seen.has(video.id)) return;
+      seen.add(video.id);
+      videos.push(video);
+    });
+  });
+  return videos.slice(0, 10);
+}
+
+function readVideoCache(seed: string): Track[] | null {
+  const cached = readStore<VideoCache | null>(VIDEO_CACHE_KEY, null);
+  if (!cached || !Array.isArray(cached.tracks)) return null;
+  if (cached.seed !== seed || Date.now() - cached.savedAt > VIDEO_CACHE_TTL) return null;
+  const tracks = cached.tracks.filter(isVideoTrack).map(normalizeTrack);
+  return tracks.length ? tracks : null;
+}
+
+function writeVideoCache(seed: string, tracks: Track[]) {
+  try {
+    const cached: VideoCache = { savedAt: Date.now(), seed, tracks };
+    localStorage.setItem(VIDEO_CACHE_KEY, JSON.stringify(cached));
+  } catch {
+    /* storage blocked: the list still works for this visit */
+  }
+}
+
+async function loadVideos() {
+  renderVideoLibrary();
+  if (!hasYouTubeApiKey()) {
+    videosHeading.textContent = 'Videos';
+    showStatus(videosGrid, 'YouTube videos are not configured (missing API key).');
+    return;
+  }
+
+  const queries = videoQueries();
+  // Seeded cache: repeat visits (and repeat searches) skip the API entirely.
+  const seed = queries.length ? `queries:${queries.join('|')}` : 'chart:music';
+  const cached = readVideoCache(seed);
+  if (cached) {
+    recommendedVideoTracks = cached;
+    showVideoHeading(queries.length > 0);
+    renderGrid(videosGrid, cached);
+    return;
+  }
+
+  videosGrid.innerHTML = skeletonGrid();
+  try {
+    let videos = queries.length ? await collectVideos(queries) : [];
+    const personalized = videos.length > 0;
+    if (!videos.length) videos = await getTrendingMusicVideos(10);
+    if (!videos.length) {
+      showStatus(videosGrid, 'No videos right now.');
+      return;
+    }
+    const tracks = videos.map(videoToTrack);
+    recommendedVideoTracks = tracks;
+    showVideoHeading(personalized);
+    renderGrid(videosGrid, tracks);
+    writeVideoCache(seed, tracks);
+  } catch {
+    showStatus(videosGrid, 'Could not reach YouTube. Please try again.', true);
+  }
+}
+
+function showVideoHeading(personalized: boolean) {
+  videosHeading.textContent = personalized ? 'Videos for you' : 'Trending music videos';
+  videosHint.textContent = personalized
+    ? 'YouTube picks based on what you play and search for on this device.'
+    : 'Popular music videos on YouTube right now. Play or search something to personalize this list.';
 }
 
 /* ---------------- Podcasts & live radio ---------------- */
@@ -1518,6 +2259,7 @@ function renderGenreChips(tracks: Track[]) {
 
 async function runSearch(rawQuery: string) {
   const query = rawQuery.trim();
+  if (query.length >= 2) saveSearch(query);
   // Only the newest search may paint results: slower responses from an older
   // query are discarded instead of overwriting fresher ones.
   const seq = ++searchSeq;
@@ -1536,10 +2278,17 @@ async function runSearch(rawQuery: string) {
         ? 'Search podcasts'
         : searchScope === 'radio'
           ? 'Search live radio'
-          : 'Search results';
-    [audiusResults, deezerResults, itunesResults, podcastResults, radioResults].forEach(
-      (container) => (container.innerHTML = '')
-    );
+          : searchScope === 'video'
+            ? 'Search videos'
+            : 'Search results';
+    [
+      audiusResults,
+      deezerResults,
+      itunesResults,
+      podcastResults,
+      radioResults,
+      videoResults,
+    ].forEach((container) => (container.innerHTML = ''));
     return;
   }
 
@@ -1547,25 +2296,36 @@ async function runSearch(rawQuery: string) {
   closeDetail();
   searchHint.hidden = true;
   const label =
-    searchScope === 'podcast' ? 'Podcast results' : searchScope === 'radio' ? 'Radio results' : 'Results';
+    searchScope === 'podcast'
+      ? 'Podcast results'
+      : searchScope === 'radio'
+        ? 'Radio results'
+        : searchScope === 'video'
+          ? 'Video results'
+          : 'Results';
   searchHeading.textContent = `${label} for “${query}”`;
 
   const wantSongs = searchScope === 'all';
-  const wantPodcasts = searchScope !== 'radio';
-  const wantRadio = searchScope !== 'podcast';
+  const wantPodcasts = searchScope === 'all' || searchScope === 'podcast';
+  const wantRadio = searchScope === 'all' || searchScope === 'radio';
+  const wantVideos = searchScope === 'all' || searchScope === 'video';
 
   if (wantSongs) {
     [audiusResults, deezerResults, itunesResults].forEach((container) => (container.innerHTML = skeletonGrid()));
   }
   if (wantPodcasts) podcastResults.innerHTML = skeletonGrid();
   if (wantRadio) radioResults.innerHTML = skeletonGrid();
+  if (wantVideos) videoResults.innerHTML = skeletonGrid(4);
 
-  const [audius, deezer, itunes, podcasts, radio] = await Promise.allSettled([
+  const [audius, deezer, itunes, podcasts, radio, videos] = await Promise.allSettled([
     wantSongs ? searchAudius(query) : Promise.resolve<Track[]>([]),
     wantSongs ? searchDeezer(query) : Promise.resolve<Track[]>([]),
     wantSongs ? searchItunes(query) : Promise.resolve<Track[]>([]),
     wantPodcasts ? searchPodcasts(query) : Promise.resolve<Track[]>([]),
     wantRadio ? searchRadio(query) : Promise.resolve<Track[]>([]),
+    wantVideos
+      ? searchYouTubeVideos(query, 6).then((list) => list.map(videoToTrack))
+      : Promise.resolve<Track[]>([]),
   ]);
 
   if (seq !== searchSeq) return;
@@ -1580,6 +2340,9 @@ async function runSearch(rawQuery: string) {
   }
   if (wantRadio) {
     renderResults(radio, radioResults, 'No live radio stations matched.', 'Radio search failed. Please try again.');
+  }
+  if (wantVideos) {
+    renderResults(videos, videoResults, 'No videos matched.', 'YouTube search failed. Please try again.');
   }
 }
 

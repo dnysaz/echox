@@ -517,6 +517,123 @@ input[type="search"]::-webkit-search-results-decoration {
 .detail-art img { width: 100%; height: 100%; object-fit: cover; }
 .detail-art { position: relative; }
 
+/* The Now playing card plays the video itself instead of a still thumbnail. */
+.detail-video {
+  display: none;
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .5);
+}
+.detail.is-video .detail-video { display: block; }
+.detail.is-video .detail-art { display: none; }
+.detail.is-video .detail-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(220px, 1fr);
+  grid-template-areas:
+    "video info"
+    "copy info";
+  column-gap: 22px;
+  row-gap: 14px;
+  align-items: start;
+}
+.detail.is-video .detail-video { grid-area: video; align-self: start; }
+.detail.is-video .detail-copy { grid-area: copy; }
+.detail.is-video .detail-video-info { grid-area: info; align-self: start; }
+.detail-video-frame { position: absolute; inset: 0; }
+.detail-video iframe { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+.detail-video-fs {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  cursor: pointer;
+  opacity: .85;
+  transition: opacity .15s, background .15s;
+}
+.detail-video-fs:hover { opacity: 1; background: rgba(0, 0, 0, .78); }
+.detail-video-fs svg { width: 18px; height: 18px; }
+
+/* Video metadata beside the card player: description, counters, source link. */
+.detail-video-info {
+  display: none;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .04);
+  min-width: 0;
+}
+.detail.is-video .detail-video-info:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.detail-video-info-head {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.detail-video-stats { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.detail-stat { display: flex; flex-direction: column; gap: 1px; }
+.detail-stat b { font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
+.detail-stat small {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #777783;
+}
+.detail-video-desc {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #b9b9c6;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 6px;
+  flex: 1 1 auto;
+}
+.detail-video-desc.is-empty { color: var(--muted); font-style: italic; }
+.detail-video-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-top: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+}
+.detail-video-link:hover { text-decoration: underline; }
+.detail-video-link svg { width: 13px; height: 13px; }
+
+@media (max-width: 1000px) {
+  .detail.is-video .detail-head {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "video" "copy" "info";
+  }
+  .detail-video-desc { max-height: 200px; }
+}
+
 /* ---------- Cover-art backdrop behind the now-playing panel ---------- */
 .detail-vibe {
   position: absolute;
@@ -638,6 +755,17 @@ input[type="search"]::-webkit-search-results-decoration {
   line-height: 1.08;
   letter-spacing: -1px;
   overflow-wrap: anywhere;
+}
+/* The Now playing card: long video titles use a smaller, cut-off title. */
+.detail.is-video .detail-copy h2 {
+  font-size: clamp(17px, 2.4vw, 22px);
+  line-height: 1.25;
+  letter-spacing: -.3px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 .detail-artist { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
 .detail-foot {
@@ -1472,9 +1600,13 @@ body.np-open { overflow: hidden; }
   flex-direction: column;
   background: #08080a;
 }
-@keyframes npIn {
-  from { transform: translateY(16px); }
+@keyframes npUp {
+  from { transform: translateY(100%); }
   to { transform: none; }
+}
+@keyframes npDown {
+  from { transform: none; }
+  to { transform: translateY(100%); }
 }
 
 .np-ambient {
@@ -1498,7 +1630,10 @@ body.np-open { overflow: hidden; }
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  animation: npIn .26s ease both;
+  animation: npUp .32s cubic-bezier(.22, .61, .36, 1) both;
+}
+.np.is-closing .np-sheet {
+  animation: npDown .26s cubic-bezier(.4, 0, .7, .2) both;
 }
 
 .np-top {
@@ -1557,6 +1692,131 @@ body.np-open { overflow: hidden; }
   padding-top: 8px;
 }
 
+/* YouTube music video mode replaces the artwork block with a large player. */
+.np-body.video-mode {
+  max-width: 1000px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.np-body.video-mode > .np-art { display: none; }
+.np-video[hidden] { display: none; }
+.np-body.video-mode > .np-video { display: block; }
+/* Keep the text and controls under the video at a readable width. */
+.np-body.video-mode > :not(.np-video) {
+  width: 100%;
+  max-width: 640px;
+  margin-inline: auto;
+}
+
+.np-video {
+  display: none;
+  position: relative;
+  width: 100%;
+  /* As large as the viewport allows, without pushing the controls off-screen. */
+  max-width: min(1000px, calc((100dvh - 200px) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  margin: 4px auto 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #262630;
+  box-shadow: 0 26px 60px rgba(0, 0, 0, .55);
+}
+.np-video-frame { position: absolute; inset: 0; }
+.np-video iframe { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+
+/* Video tools live in the header next to like/share, not over the player. */
+.np-video-tools {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.np.video-mode .np-video-tools { display: flex; }
+.np-video-tools .icon-btn { width: 36px; height: 36px; }
+.np-video-tools .icon-btn svg { width: 18px; height: 18px; }
+.np-video-tools .icon-btn.is-on { background: var(--accent); color: #1c0d00; }
+.np-video-tools .icon-btn[hidden] { display: none; }
+/* Keep the header above the video when it is enlarged in-page. */
+.np.video-mode .np-top { position: relative; z-index: 5; }
+/* The source label is hidden for videos so it never sits over the player. */
+.np.video-mode .np-eyebrow { visibility: hidden; }
+
+/* Video layout: the player comes first, then the title. Play, seek, like and
+   share live in the bottom player / YouTube controls already. */
+.np.video-mode #np-like,
+.np.video-mode #np-share,
+.np.video-mode .np-progress,
+.np.video-mode .np-controls,
+.np.video-mode .np-actions { display: none; }
+.np.video-mode .np-copy { padding-top: 2px; }
+
+/* In-page "enlarge": fill the whole viewport without the browser API. */
+.np-video.is-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  aspect-ratio: auto;
+  margin: 0;
+  border-radius: 0;
+  background: #000;
+  box-shadow: none;
+}
+
+.np-video:fullscreen,
+.np-video.is-fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  aspect-ratio: auto;
+  margin: 0;
+  border-radius: 0;
+  background: #000;
+}
+
+/* Phones: let the video run edge to edge instead of the smaller padded box. */
+@media (max-width: 700px) {
+  .np-body.video-mode > .np-video {
+    width: calc(100% + 40px);
+    max-width: none;
+    margin-inline: -20px;
+    border-radius: 0;
+  }
+}
+
+/* Picture in picture: shrink now playing into a floating video window. */
+.np.is-pip {
+  inset: auto 16px 104px auto;
+  width: min(340px, calc(100vw - 32px));
+  background: transparent;
+  pointer-events: none;
+}
+.np.is-pip .np-ambient { display: none; }
+.np.is-pip .np-top {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 5;
+  display: flex;
+  padding: 0;
+  pointer-events: auto;
+}
+.np.is-pip .np-top > :not(.np-video-tools) { display: none; }
+.np.is-pip .np-video-tools { display: flex; }
+.np.is-pip .np-sheet { background: transparent; }
+.np.is-pip .np-scroll { padding: 0; overflow: visible; }
+.np.is-pip .np-body { padding: 0; gap: 0; max-width: none; }
+.np.is-pip .np-body > :not(.np-video) { display: none; }
+.np.is-pip .np-video {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  border-radius: 14px;
+  pointer-events: auto;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .65);
+}
+
 .np-art {
   position: relative;
   width: min(72vw, 300px);
@@ -1581,6 +1841,7 @@ body.np-open { overflow: hidden; }
   letter-spacing: -.6px;
   overflow-wrap: anywhere;
 }
+
 .np-artist { margin: 8px 0 0; font-size: 15px; color: var(--muted); }
 .np-desc {
   margin: 14px auto 0;
@@ -1669,5 +1930,5 @@ body.np-open { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .np-sheet, .np.is-live .np-dot { animation: none; }
+  .np-sheet, .np.is-closing .np-sheet, .np.is-live .np-dot { animation: none; }
 }

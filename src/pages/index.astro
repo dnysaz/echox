@@ -23,11 +23,39 @@ import TermsArticle from '../components/TermsArticle.astro';
           </svg>
           <span class="nav-label">Home</span>
         </button>
+        <button type="button" class="nav-item" data-view="videos" data-nav="videos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="4" width="20" height="16" rx="4" /><path d="M8 2v4M16 2v4M2 10h20" />
+          </svg>
+          <span class="nav-label">Videos</span>
+        </button>
         <button type="button" class="nav-item nav-search" data-view="search" data-nav="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" />
           </svg>
           <span class="nav-label">Search</span>
+        </button>
+        <button
+          type="button"
+          class="nav-item"
+          data-view="podcasts"
+          data-nav="podcasts"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3" />
+          </svg>
+          <span class="nav-label">Podcasts</span>
+        </button>
+        <button
+          type="button"
+          class="nav-item"
+          data-view="radio"
+          data-nav="radio"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="2" /><path d="M7.8 7.8a6 6 0 0 0 0 8.4" /><path d="M16.2 7.8a6 6 0 0 1 0 8.4" /><path d="M5 5a10 10 0 0 0 0 14" /><path d="M19 5a10 10 0 0 1 0 14" />
+          </svg>
+          <span class="nav-label">Radio</span>
         </button>
         <button type="button" class="nav-item" data-view="library" data-nav="liked">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
@@ -59,28 +87,6 @@ import TermsArticle from '../components/TermsArticle.astro';
             <path d="M4 19V10" /><path d="M10 19V5" /><path d="M16 19v-6" /><path d="M22 19H2" />
           </svg>
           <span class="nav-label">Most played</span>
-        </button>
-        <button
-          type="button"
-          class="nav-item"
-          data-view="podcasts"
-          data-nav="podcasts"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3" />
-          </svg>
-          <span class="nav-label">Podcasts</span>
-        </button>
-        <button
-          type="button"
-          class="nav-item"
-          data-view="radio"
-          data-nav="radio"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="2" /><path d="M7.8 7.8a6 6 0 0 0 0 8.4" /><path d="M16.2 7.8a6 6 0 0 1 0 8.4" /><path d="M5 5a10 10 0 0 0 0 14" /><path d="M19 5a10 10 0 0 1 0 14" />
-          </svg>
-          <span class="nav-label">Radio</span>
         </button>
       </nav>
 
@@ -147,6 +153,14 @@ import TermsArticle from '../components/TermsArticle.astro';
         </div>
 
         <div class="detail-head">
+          <div class="detail-video" id="detail-video">
+            <div class="detail-video-frame" id="detail-video-frame"></div>
+            <button class="detail-video-fs" id="detail-video-fs" type="button" aria-label="Fullscreen video" title="Fullscreen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 9V4h5" /><path d="M20 9V4h-5" /><path d="M4 15v5h5" /><path d="M20 15v5h-5" />
+              </svg>
+            </button>
+          </div>
           <div class="detail-art" id="detail-art"><span aria-hidden="true">♪</span></div>
           <div class="detail-copy">
             <p class="detail-eyebrow">
@@ -175,6 +189,19 @@ import TermsArticle from '../components/TermsArticle.astro';
               </div>
             </div>
           </div>
+          <aside class="detail-video-info" id="detail-video-info" hidden>
+            <p class="detail-video-info-head">About this video</p>
+            <div class="detail-video-stats">
+              <span class="detail-stat"><b id="detail-views">—</b><small>views</small></span>
+              <span class="detail-stat"><b id="detail-likes">—</b><small>likes</small></span>
+              <span class="detail-stat"><b id="detail-comments">—</b><small>comments</small></span>
+            </div>
+            <p class="detail-video-desc" id="detail-video-desc"></p>
+            <a class="detail-video-link" id="detail-video-link" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">
+              Watch on YouTube
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6" /><path d="M20 4 10 14" /><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>
+            </a>
+          </aside>
         </div>
 
         <div class="detail-list-head">
@@ -212,6 +239,12 @@ import TermsArticle from '../components/TermsArticle.astro';
           <span>Audius</span>
         </div>
         <div class="home-row" id="trending-grid"></div>
+
+        <div class="section-head" id="home-videos-head" hidden>
+          <h2>Videos you watched</h2>
+          <span>recent</span>
+        </div>
+        <div class="home-row" id="home-videos" hidden></div>
 
         <div class="section-head" id="home-podcasts-head" hidden>
           <h2>Podcast series</h2>
@@ -262,6 +295,32 @@ import TermsArticle from '../components/TermsArticle.astro';
           <span>Radio Browser</span>
         </div>
         <div id="radio-results"></div>
+
+        <div class="section-head" id="video-head">
+          <h2>Videos</h2>
+          <span>YouTube</span>
+        </div>
+        <div id="video-results"></div>
+      </section>
+
+      <section id="view-videos" class="view" hidden>
+        <h2 id="videos-heading">Videos</h2>
+        <p class="search-hint" id="videos-hint">
+          YouTube picks based on what you play and search for on this device.
+        </p>
+        <div class="home-row" id="videos-grid"></div>
+
+        <div class="section-head" id="video-play-again-head" hidden>
+          <h2>Play again</h2>
+          <span>watched</span>
+        </div>
+        <div class="home-row" id="video-play-again" hidden></div>
+
+        <div class="section-head" id="video-most-played-head" hidden>
+          <h2>Mostly played</h2>
+          <span>videos</span>
+        </div>
+        <div class="home-row" id="video-most-played" hidden></div>
       </section>
 
       <section id="view-library" class="view" hidden>
@@ -458,10 +517,32 @@ import TermsArticle from '../components/TermsArticle.astro';
             <path d="M8.2 10.9 15.8 6.6M8.2 13.1l7.6 4.3" />
           </svg>
         </button>
+        <div class="np-video-tools" id="np-video-tools">
+          <button class="icon-btn" id="np-video-expand" type="button" aria-label="Enlarge video" title="Enlarge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14 4h6v6" /><path d="m20 4-6 6" /><path d="M10 20H4v-6" /><path d="m4 20 6-6" />
+            </svg>
+          </button>
+          <button class="icon-btn" id="np-video-fs" type="button" aria-label="Fullscreen video" title="Fullscreen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 9V4h5" /><path d="M20 9V4h-5" /><path d="M4 15v5h5" /><path d="M20 15v5h-5" />
+            </svg>
+          </button>
+          <button class="icon-btn" id="np-video-pip" type="button" aria-label="Picture in picture" title="Picture in picture">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="3" />
+              <rect x="12" y="11" width="7" height="6" rx="1.5" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <div class="np-scroll">
         <div class="np-body">
+          <div class="np-video" id="np-video" hidden>
+            <div class="np-video-frame" id="np-video-frame"></div>
+          </div>
+
           <div class="np-art" id="np-art"><span aria-hidden="true">♪</span></div>
 
           <div class="np-copy">
