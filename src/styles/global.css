@@ -53,6 +53,7 @@ img { display: block; }
 .sidebar {
   position: sticky;
   top: 0;
+  z-index: 1;
   align-self: start;
   height: calc(100vh - var(--player));
   display: flex;
@@ -139,11 +140,11 @@ img { display: block; }
 
 /* ---------- Main ---------- */
 .main {
+  position: relative;
+  isolation: isolate;
   min-width: 0;
   padding: 0 34px 40px;
-  background:
-    radial-gradient(900px 380px at 20% -10%, rgba(255, 122, 0, .10), transparent 60%),
-    var(--bg);
+  background: transparent;
 }
 
 .topbar {
@@ -286,30 +287,35 @@ input[type="search"]::-webkit-search-results-decoration {
   scroll-snap-align: start;
 }
 
-/* Blurred artwork behind the hero and the Play again row. */
-.hero,
-.play-again-block { position: relative; isolation: isolate; }
-.hero-bg,
-.row-bg {
-  position: absolute;
-  inset: 0;
+/* One full-screen artwork backdrop for the page. The clear copy is masked to
+   the top, the soft copy covers everything, so it gets blurrier downwards. */
+.page-bg,
+.page-bg-top {
+  position: fixed;
+  inset: -48px;
   z-index: -1;
-  border-radius: 22px;
-  background-position: center;
+  background-image:
+    linear-gradient(180deg, rgba(8, 8, 10, .42), rgba(8, 8, 10, .68) 45%, rgba(8, 8, 10, .9)),
+    radial-gradient(900px 380px at 20% -10%, rgba(255, 122, 0, .10), transparent 60%),
+    var(--page-art, none);
+  background-position: center top;
   background-size: cover;
-  filter: blur(26px) saturate(1.35);
+  background-repeat: no-repeat;
   opacity: 0;
-  transition: opacity .4s ease;
+  transition: opacity .5s ease;
   pointer-events: none;
 }
-.hero-bg.has-art { opacity: .5; }
-.row-bg.has-art { opacity: .45; }
-.play-again-block {
-  padding: 14px 14px 8px;
-  margin-top: 6px;
-  border-radius: 22px;
+.page-bg {
+  background-color: var(--bg);
+  filter: blur(40px) saturate(1.4);
 }
-.play-again-block .section-head { margin-top: 0; }
+.page-bg.has-art { opacity: .9; }
+.page-bg-top {
+  filter: blur(1.5px) saturate(1.25);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .9) 0%, rgba(0, 0, 0, .4) 28%, transparent 56%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .9) 0%, rgba(0, 0, 0, .4) 28%, transparent 56%);
+}
+.page-bg-top.has-art { opacity: .55; }
 
 .home-foot {
   display: flex;

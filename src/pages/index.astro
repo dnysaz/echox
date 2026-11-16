@@ -107,6 +107,8 @@ import TermsArticle from '../components/TermsArticle.astro';
     </aside>
 
     <main class="main">
+      <div class="page-bg" id="page-bg" aria-hidden="true"></div>
+      <div class="page-bg-top" id="page-bg-top" aria-hidden="true"></div>
       <header class="topbar">
         <a class="mobile-brand" href="/">echo<span class="brand-x">X</span></a>
         <label class="search">
@@ -217,7 +219,6 @@ import TermsArticle from '../components/TermsArticle.astro';
 
       <section id="view-home" class="view">
         <div class="hero">
-          <div class="hero-bg" id="hero-bg" aria-hidden="true"></div>
           <p class="eyebrow">Free · legal · no subscription</p>
           <h1>Free Music, Video, Radio<br />and Podcast Stream,<br />only for fun!</h1>
           <p class="sub">
@@ -231,14 +232,11 @@ import TermsArticle from '../components/TermsArticle.astro';
           <div class="chips" id="genre-chips"></div>
         </div>
 
-        <div class="play-again-block" id="home-play-again-block" hidden>
-          <div class="row-bg" id="home-play-again-bg" aria-hidden="true"></div>
-          <div class="section-head" id="home-play-again-head" hidden>
-            <h2>Play again</h2>
-            <span>recent</span>
-          </div>
-          <div class="home-row" id="home-play-again" hidden></div>
+        <div class="section-head" id="home-play-again-head" hidden>
+          <h2>Play again</h2>
+          <span>recent</span>
         </div>
+        <div class="home-row" id="home-play-again" hidden></div>
 
         <div class="section-head">
           <h2>Trending now</h2>
