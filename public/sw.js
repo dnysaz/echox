@@ -1,7 +1,8 @@
 // Bump this whenever the shell URLs or the caching rules change.
-const VERSION = 'echox-v2';
+const VERSION = 'echox-v3';
 const SHELL = [
   '/',
+  '/embed/',
   '/terms/',
   '/manifest.webmanifest',
   '/favicon.svg',

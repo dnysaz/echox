@@ -5,6 +5,7 @@ import {
   getPodcastShows,
   getRadioByCountry,
   getRadioStations,
+  getTrackById,
   getTrending,
   searchAudius,
   searchDeezer,
@@ -58,6 +59,19 @@ const detailList = el<HTMLDivElement>('detail-list');
 const detailCount = el<HTMLSpanElement>('detail-count');
 const detailArtistName = el<HTMLSpanElement>('detail-artist-name');
 const detailListPrefix = el<HTMLSpanElement>('detail-list-prefix');
+const detailVibeArt = el<HTMLSpanElement>('detail-vibe-art');
+const detailShare = el<HTMLButtonElement>('detail-share');
+const playerShare = el<HTMLButtonElement>('player-share');
+const npShare = el<HTMLButtonElement>('np-share');
+const shareDialog = el<HTMLDialogElement>('share-dialog');
+const shareArt = el<HTMLDivElement>('share-art');
+const shareName = el<HTMLParagraphElement>('share-name');
+const shareBy = el<HTMLParagraphElement>('share-by');
+const shareLink = el<HTMLInputElement>('share-link');
+const shareEmbed = el<HTMLInputElement>('share-embed');
+const shareCopyLink = el<HTMLButtonElement>('share-copy-link');
+const shareCopyEmbed = el<HTMLButtonElement>('share-copy-embed');
+const shareNative = el<HTMLButtonElement>('share-native');
 const nowOpen = el<HTMLButtonElement>('now-open');
 
 const np = el<HTMLElement>('np');
@@ -309,6 +323,28 @@ function restorePlayback() {
   else audio.addEventListener('loadedmetadata', resume, { once: true });
 }
 
+// A shared link ("/?t=source:id") loads that exact track in a fresh tab.
+async function openSharedTrack(trackId: string) {
+  const clean = new URL(location.href);
+  clean.searchParams.delete('t');
+  // `history` is the in-app play history, so target the browser API explicitly.
+  window.history.replaceState(null, '', `${clean.pathname}${clean.search}${clean.hash}`);
+
+  const track = await getTrackById(trackId);
+  if (!track) {
+    nowSrc.textContent = 'SHARED TRACK UNAVAILABLE';
+    return;
+  }
+  queue = [track];
+  index = 0;
+  loadTrack(track, false);
+  void audio.play().catch(() => {
+    nowSrc.textContent = 'PAUSED · TAP PLAY TO RESUME';
+  });
+  if (track.live) closeDetail();
+  else void openDetail(track);
+}
+
 function recordPlay(track: Track) {
   const at = Date.now();
   const existing = history.findIndex((entry) => entry.track.id === track.id);
@@ -528,8 +564,20 @@ async function openDetail(track: Track) {
   }
 }
 
+function setDetailBackdrop(url: string) {
+  detailVibeArt.style.backgroundImage = url ? `url(${JSON.stringify(url)})` : '';
+  if (!url) return;
+  // Some station logos refuse hotlinking; fall back to the accent wash.
+  const probe = new Image();
+  probe.onerror = () => {
+    if (detailVibeArt.style.backgroundImage.includes(url)) detailVibeArt.style.backgroundImage = '';
+  };
+  probe.src = url;
+}
+
 function renderDetailHead(track: Track) {
   detailArt.innerHTML = coverMarkup(track, 'lg');
+  setDetailBackdrop(track.artwork);
   detailTitle.textContent = track.title;
   detailArtist.textContent = track.artist;
   detailArtistName.textContent = track.live ? track.country || track.artist : track.artist;
@@ -596,6 +644,7 @@ function renderNowPlaying(track: Track) {
   npDesc.textContent = track.description ?? '';
   npDesc.hidden = !track.description;
   npLike.disabled = false;
+  npShare.disabled = false;
   npLike.classList.toggle('liked', liked.has(track.id));
   npDetail.textContent = track.live ? 'More live stations in this country' : 'More from this artist';
   npProgress.hidden = track.live === true;
@@ -691,6 +740,76 @@ function onTrackChanged(track: Track) {
   renderDetailList(track);
 }
 
+/* ---------------- Share & embed ---------------- */
+
+function shareLinks(track: Track) {
+  const link = new URL('/', location.origin);
+  link.searchParams.set('t', track.id);
+  const embed = new URL('/embed/', location.origin);
+  embed.searchParams.set('t', track.id);
+  const label = `${track.title} — ${track.artist}`
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+  const code = `<iframe src="${embed.toString()}" width="360" height="152" style="border:0;border-radius:14px" loading="lazy" allow="autoplay; encrypted-media" title="${label}"></iframe>`;
+  return { link: link.toString(), embed: embed.toString(), code };
+}
+
+function resetCopy(button: HTMLButtonElement, label: string) {
+  button.textContent = label;
+  button.classList.remove('is-done');
+}
+
+function legacyCopy(value: string) {
+  const field = document.createElement('textarea');
+  field.value = value;
+  field.readOnly = true;
+  field.style.position = 'fixed';
+  field.style.top = '-1000px';
+  field.style.opacity = '0';
+  document.body.append(field);
+  field.select();
+  const ok = document.execCommand('copy');
+  field.remove();
+  return ok;
+}
+
+async function copyValue(value: string, button: HTMLButtonElement) {
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(value);
+    copied = true;
+  } catch {
+    copied = legacyCopy(value);
+  }
+  button.textContent = copied ? 'Copied' : 'Select';
+  button.classList.toggle('is-done', copied);
+  window.setTimeout(() => resetCopy(button, 'Copy'), 1600);
+}
+
+function openShare(track: Track) {
+  const { link, code } = shareLinks(track);
+  shareArt.innerHTML = '';
+  if (track.artwork) {
+    const img = document.createElement('img');
+    img.src = track.artwork;
+    img.alt = '';
+    img.referrerPolicy = 'no-referrer';
+    shareArt.append(img);
+  } else {
+    shareArt.innerHTML = '<span aria-hidden="true">♪</span>';
+  }
+  shareName.textContent = track.title;
+  shareBy.textContent = track.artist;
+  shareLink.value = link;
+  shareEmbed.value = code;
+  resetCopy(shareCopyLink, 'Copy');
+  resetCopy(shareCopyEmbed, 'Copy');
+  shareNative.hidden = typeof navigator.share !== 'function';
+  if (typeof shareDialog.showModal === 'function') shareDialog.showModal();
+  else shareDialog.setAttribute('open', '');
+}
+
 /* ---------------- Player ---------------- */
 
 function playQueue(list: Track[], position: number) {
@@ -710,6 +829,7 @@ function loadTrack(track: Track, autoplay: boolean) {
   nowOpen.disabled = false;
   likeBtn.disabled = false;
   fullBtn.disabled = false;
+  playerShare.disabled = false;
   likeBtn.classList.toggle('liked', liked.has(track.id));
   const live = track.live === true;
   cur.textContent = live ? '' : '0:00';
@@ -917,6 +1037,27 @@ npLike.addEventListener('click', () => {
 
 fullBtn.addEventListener('click', openNowPlaying);
 npClose.addEventListener('click', closeNowPlaying);
+
+detailShare.addEventListener('click', () => {
+  if (current) openShare(current);
+});
+playerShare.addEventListener('click', () => {
+  if (current) openShare(current);
+});
+npShare.addEventListener('click', () => {
+  if (current) openShare(current);
+});
+shareCopyLink.addEventListener('click', () => void copyValue(shareLink.value, shareCopyLink));
+shareCopyEmbed.addEventListener('click', () => void copyValue(shareEmbed.value, shareCopyEmbed));
+shareNative.addEventListener('click', async () => {
+  if (!current) return;
+  const { link } = shareLinks(current);
+  try {
+    await navigator.share({ title: current.title, text: `${current.title} — ${current.artist}`, url: link });
+  } catch {
+    /* the share sheet was dismissed */
+  }
+});
 npPlay.addEventListener('click', togglePlay);
 npDetail.addEventListener('click', () => {
   closeNowPlaying();
@@ -991,6 +1132,8 @@ type View = (typeof views)[number];
 
 let currentView: View = 'home';
 let termsReturn: View = 'home';
+// Where the mobile search field returns to when it is dismissed.
+let searchReturn: View = 'home';
 
 // Searching from Podcasts or Radio limits the results to that source; from
 // anywhere else every source is searched, songs first.
@@ -1070,6 +1213,9 @@ function setView(view: View, nav?: string) {
 // The magnifier in the top bar opens the dedicated search page (the one the
 // old bottom-navigation Search tab used to show) instead of a bare field.
 function openSearchPage() {
+  if (currentView !== 'search') {
+    searchReturn = currentView === 'terms' ? 'home' : currentView;
+  }
   const nextScope = currentView === 'search' ? searchScope : scopeFromView(currentView);
   const scopeChanged = nextScope !== searchScope;
   searchScope = nextScope;
@@ -1126,7 +1272,14 @@ document.querySelectorAll<HTMLElement>('[data-view]').forEach((btn) => {
 });
 
 searchToggle.addEventListener('click', openSearchPage);
-searchCancel.addEventListener('click', () => setSearchOpen(false));
+// On mobile the X closes the field *and* leaves the results page, returning to
+// whatever view the search was opened from instead of leaving a dead page.
+searchCancel.addEventListener('click', () => {
+  setSearchOpen(false);
+  if (currentView !== 'search') return;
+  setView(searchReturn);
+  window.scrollTo({ top: 0 });
+});
 
 /* ---------------- Terms, without interrupting playback ---------------- */
 
@@ -1539,6 +1692,8 @@ export function init() {
   setView('home');
   renderLibrary();
   restorePlayback();
+  const shared = new URLSearchParams(location.search).get('t');
+  if (shared) void openSharedTrack(shared);
   void loadHome();
   void loadHomeExtras();
 }

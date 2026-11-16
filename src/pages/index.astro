@@ -142,17 +142,19 @@ import TermsArticle from '../components/TermsArticle.astro';
         </button>
 
         <div class="detail-vibe" aria-hidden="true">
-          <span class="vibe-glow"></span>
-          <span class="vibe-glow vibe-glow-b"></span>
-          <span class="vibe-bars">
-            <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-          </span>
+          <span class="vibe-art" id="detail-vibe-art"></span>
+          <span class="vibe-scrim"></span>
         </div>
 
         <div class="detail-head">
           <div class="detail-art" id="detail-art"><span aria-hidden="true">♪</span></div>
           <div class="detail-copy">
-            <p class="detail-eyebrow">Now playing</p>
+            <p class="detail-eyebrow">
+              <span>Now playing</span>
+              <span class="vibe-bars" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </span>
+            </p>
             <h2 id="detail-title">—</h2>
             <p class="detail-artist" id="detail-artist">—</p>
             <div class="detail-foot">
@@ -162,6 +164,12 @@ import TermsArticle from '../components/TermsArticle.astro';
                 <button class="icon-btn" id="detail-like" type="button" aria-label="Like song">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
                     <path transform="translate(0 -0.6)" d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 7a4 4 0 0 1 7 3.8C19 15.6 12 20 12 20Z" />
+                  </svg>
+                </button>
+                <button class="icon-btn" id="detail-share" type="button" aria-label="Share song">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="18" cy="5.5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="18.5" r="2.5" />
+                    <path d="M8.2 10.9 15.8 6.6M8.2 13.1l7.6 4.3" />
                   </svg>
                 </button>
               </div>
@@ -362,6 +370,12 @@ import TermsArticle from '../components/TermsArticle.astro';
     </div>
 
     <div class="player-right">
+      <button class="icon-btn" id="player-share" type="button" aria-label="Share song" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="18" cy="5.5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="18.5" r="2.5" />
+          <path d="M8.2 10.9 15.8 6.6M8.2 13.1l7.6 4.3" />
+        </svg>
+      </button>
       <button class="icon-btn" id="mute-btn" type="button" aria-label="Mute">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
           <g transform="translate(1.3)">
@@ -372,6 +386,43 @@ import TermsArticle from '../components/TermsArticle.astro';
       <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume" />
     </div>
   </div>
+
+  <dialog class="share" id="share-dialog" aria-labelledby="share-title">
+    <form method="dialog" class="share-head">
+      <h2 id="share-title">Share</h2>
+      <button class="share-x" type="submit" aria-label="Close share">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6 18 18M18 6 6 18" />
+        </svg>
+      </button>
+    </form>
+
+    <div class="share-track">
+      <div class="share-art" id="share-art"><span aria-hidden="true">♪</span></div>
+      <div class="share-copy">
+        <p class="share-name" id="share-name">—</p>
+        <p class="share-by" id="share-by">—</p>
+      </div>
+    </div>
+
+    <div class="share-field">
+      <span>Link</span>
+      <div class="share-input">
+        <input id="share-link" readonly />
+        <button id="share-copy-link" type="button">Copy</button>
+      </div>
+    </div>
+
+    <div class="share-field">
+      <span>Embed player</span>
+      <div class="share-input">
+        <input id="share-embed" readonly />
+        <button id="share-copy-embed" type="button">Copy</button>
+      </div>
+    </div>
+
+    <button class="share-native" id="share-native" type="button" hidden>Share…</button>
+  </dialog>
 
   <div class="np" id="np" hidden role="dialog" aria-modal="true" aria-labelledby="np-title">
     <div class="np-ambient" id="np-ambient" aria-hidden="true"></div>
@@ -386,6 +437,12 @@ import TermsArticle from '../components/TermsArticle.astro';
         <button class="icon-btn" id="np-like" type="button" aria-label="Like song" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
             <path transform="translate(0 -0.6)" d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 7a4 4 0 0 1 7 3.8C19 15.6 12 20 12 20Z" />
+          </svg>
+        </button>
+        <button class="icon-btn" id="np-share" type="button" aria-label="Share song" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="18" cy="5.5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="18.5" r="2.5" />
+            <path d="M8.2 10.9 15.8 6.6M8.2 13.1l7.6 4.3" />
           </svg>
         </button>
       </header>

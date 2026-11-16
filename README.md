@@ -14,6 +14,7 @@
 - **Artist view** — clicking any card expands a full-width panel with the artwork, and lists everything else available from that artist.
 - **Playback** — a persistent player bar with play/pause, previous/next, seek and volume, plus the queue built from the list you are looking at.
 - **Full-screen now playing** — the expand button next to Like (or the player cover) opens the artwork on a blurred copy of itself, with the source details the API returns: genre, mood, tags, release date, play/favorite/repost counts, album, episode length, station language, codec, bitrate and more, plus a link back to the original source.
+- **Share and embed** — every song, podcast episode and radio station has a share button in the detail panel, the player bar and the full-screen view. It produces a direct link (`/?t=…`) plus a Spotify-style `<iframe>` embed served from `/embed/`, with artwork, a blurred cover backdrop, play/pause, a seek bar and a backlink to echoX.
 - **Library on this device** — play again, most played, recently played history and liked songs, all stored in `localStorage`.
 - **Resume after reload** — the last played song, its queue and its position are restored, and playback continues automatically when the browser allows it.
 - **Live radio and podcasts** — community radio stations (HTTPS streams only) and podcast series with full episodes; the radio page loads 20 stations at a time with a *Load more* button, and tapping the now-playing radio title lists the other stations from the same country.
@@ -31,7 +32,7 @@
 | Audio     | HTML5 `<audio>`, streamed directly from the source APIs        |
 | Icons     | Inline SVG + a hand-made `public/favicon.svg` play-button mark |
 
-No UI framework, no CSS library, no client-side router — three TypeScript modules (API client, player logic and PWA glue), one stylesheet and two shared Astro components.
+No UI framework, no CSS library, no client-side router — four TypeScript modules (API client, player logic, PWA glue and the embed player), one stylesheet and two shared Astro components.
 
 ## Getting started
 
@@ -85,9 +86,11 @@ The service worker caches the app shell, icons and hashed build assets, so the i
 │   │   └── api.ts           # Audius, Deezer, iTunes, podcast and radio clients
 │   ├── pages/
 │   │   ├── index.astro      # the player app
+│   │   ├── embed.astro      # minimal embeddable player for shared items
 │   │   └── terms.astro      # standalone terms page
 │   ├── scripts/
 │   │   ├── app.ts           # all client logic: views, search, detail panel, player
+│   │   ├── embed.ts         # embeddable player logic
 │   │   └── pwa.ts           # install prompt, service worker, zoom lock
 │   └── styles/
 │       └── global.css       # theme, layout, detail panel, mobile rules
@@ -105,6 +108,10 @@ Astro renders the shell and `src/scripts/app.ts` runs on the client. All network
 - **Radio Browser** — `GET https://de1.api.radio-browser.info/json/stations/search`, a free, keyless, community-run directory. Only HTTPS streams are offered, and audio plays straight from the broadcaster.
 
 Tracks are never downloaded or re-hosted; audio is played from the original source. A unified `Track` type normalizes every source (with a `live` flag for radio) so the UI does not care where a song came from.
+
+### Shared links and embeds
+
+Share links use `/?t=<source>:<id>` and embeds use `/embed/?t=<source>:<id>`. A single resolver, `getTrackById()`, turns that id back into a playable `Track` in a fresh tab: Audius and Deezer are looked up by their own ids, iTunes songs through the Search API, radio stations through Radio Browser, and podcast episodes carry a compact base64 payload in the id (Apple cannot resolve an episode by its own id, and a show lookup only returns its latest ~200 episodes). The embed page is plain HTML, CSS and one small script, so it can be dropped into any site with `<iframe src="…/embed/?t=…">`; no API key is involved.
 
 ## Notes and limitations
 

@@ -259,11 +259,23 @@ function fromShow(r: ItunesShow): Show | null {
 function fromPodcast(r: ItunesPodcast): Track | null {
   if (!r.previewUrl || !r.trackName) return null;
   const duration = Math.round((r.trackTimeMillis ?? 0) / 1000);
+  const artwork = (r.artworkUrl600 || r.artworkUrl100 || '').replace('100x100', '600x600');
+  // Shared links need the episode metadata inline (see encodePodcastPayload).
+  const shareId = encodePodcastPayload({
+    e: String(r.trackId ?? r.previewUrl),
+    c: r.collectionId ? String(r.collectionId) : undefined,
+    t: r.trackName,
+    a: r.collectionName || r.artistName || 'Podcast',
+    r: artwork || undefined,
+    d: duration || undefined,
+    s: r.previewUrl,
+    al: r.collectionName || undefined,
+  });
   return {
-    id: `podcast:${r.trackId ?? r.previewUrl}`,
+    id: shareId,
     title: r.trackName,
     artist: r.collectionName || r.artistName || 'Podcast',
-    artwork: (r.artworkUrl600 || r.artworkUrl100 || '').replace('100x100', '600x600'),
+    artwork,
     duration,
     src: r.previewUrl,
     source: 'podcast',
@@ -485,4 +497,124 @@ export function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+const ITUNES_LOOKUP = 'https://itunes.apple.com/lookup';
+
+// Podcast episodes cannot be looked up by their own id, and a show lookup only
+// returns the latest ~200 episodes. A compact payload in the track id keeps
+// shared links working for any episode without another network request.
+type PodcastPayload = {
+  e: string;
+  c?: string;
+  t: string;
+  a: string;
+  r?: string;
+  d?: number;
+  s: string;
+  al?: string;
+};
+
+function b64urlEncode(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function b64urlDecode(value: string): string {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='));
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function encodePodcastPayload(payload: PodcastPayload): string {
+  return `podcast:${b64urlEncode(JSON.stringify(payload))}`;
+}
+
+function decodePodcastPayload(rawId: string): Track | null {
+  try {
+    const payload = JSON.parse(b64urlDecode(rawId)) as Partial<PodcastPayload> | null;
+    if (!payload || !payload.s || !payload.t) return null;
+    return {
+      id: `podcast:${rawId}`,
+      title: payload.t,
+      artist: payload.a || 'Podcast',
+      artwork: payload.r ?? '',
+      duration: payload.d ?? 0,
+      src: payload.s,
+      source: 'podcast',
+      album: payload.al,
+      artistId: payload.c ? Number(payload.c) : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a shared track id ("source:rawId") back into something playable, so
+ * links and embeds work in a fresh tab without the original search results.
+ */
+export async function getTrackById(trackId: string): Promise<Track | null> {
+  const cut = trackId.indexOf(':');
+  if (cut < 1) return null;
+  const source = trackId.slice(0, cut) as Source;
+  const rawId = trackId.slice(cut + 1);
+  if (!rawId) return null;
+
+  try {
+    if (source === 'audius') {
+      const data = await getJson<{ data?: AudiusTrack } | null>(
+        `${AUDIUS}/tracks/${encodeURIComponent(rawId)}?app_name=${APP_NAME}`
+      );
+      return data?.data ? fromAudius(data.data) : null;
+    }
+
+    if (source === 'deezer') {
+      const track = await getJsonp<DeezerTrack | null>(`https://api.deezer.com/track/${encodeURIComponent(rawId)}`);
+      return track ? fromDeezer(track) : null;
+    }
+
+    if (source === 'itunes') {
+      const data = await getJson<{ results?: ItunesTrack[] } | null>(
+        `${ITUNES_LOOKUP}?id=${encodeURIComponent(rawId)}`
+      );
+      const hit = data?.results?.[0];
+      return hit ? fromItunes(hit) : null;
+    }
+
+    if (source === 'podcast') {
+      const inline = decodePodcastPayload(rawId);
+      if (inline) return inline;
+
+      // Older "podcast:<showId>:<episodeId>" ids still resolve through the show
+      // when the episode is among the latest 200.
+      const split = rawId.indexOf(':');
+      if (split < 1) return null;
+      const showId = rawId.slice(0, split);
+      const episodeKey = rawId.slice(split + 1);
+      const data = await getJson<{ results?: ItunesPodcast[] } | null>(
+        `${ITUNES_LOOKUP}?id=${encodeURIComponent(showId)}&entity=podcastEpisode&limit=200`
+      );
+      const episodes = (data?.results ?? []).filter((r) => r.wrapperType === 'podcastEpisode');
+      const hit = episodes.find((r) => String(r.trackId ?? r.previewUrl) === episodeKey);
+      return hit ? fromPodcast(hit) : null;
+    }
+
+    if (source === 'radio') {
+      const data = await getJson<RadioStation[] | null>(
+        `https://de1.api.radio-browser.info/json/stations/byuuid/${encodeURIComponent(rawId)}`
+      );
+      const hit = Array.isArray(data) ? data[0] : null;
+      return hit ? fromRadio(hit) : null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
