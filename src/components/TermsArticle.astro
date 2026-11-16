@@ -4,7 +4,7 @@
 ---
 
 <h1>Terms &amp; Conditions</h1>
-<p class="updated">Last updated: November 14, 2026</p>
+<p class="updated">Last updated: November 16, 2026</p>
 
 <p class="legal-note">
   EchoX is a free hobby project. It comes with no guarantees, no support and no warranty.
@@ -13,10 +13,11 @@
 
 <h2>1. What EchoX is</h2>
 <p>
-  EchoX is a free, browser-based music player. It streams full tracks from Audius, 30-second
-  previews from Deezer and Apple's iTunes Search API, podcast episodes from Apple Podcasts and
-  live radio from Radio Browser. EchoX does not host, upload, store or redistribute any music
-  files; playback happens directly from those third-party services.
+  EchoX is a free, browser-based music and video player. It streams full tracks from Audius,
+  30-second previews from Deezer and Apple's iTunes Search API, podcast episodes from Apple
+  Podcasts, live radio from Radio Browser and music videos from YouTube through YouTube's
+  embedded player. EchoX does not host, upload, store or redistribute any music or video files;
+  playback happens directly from those third-party services.
 </p>
 
 <h2>2. Free, “as is”, no warranty</h2>
@@ -24,7 +25,7 @@
   EchoX is provided <strong>“as is”</strong> and <strong>“as available”</strong>, without
   warranties of any kind, whether express or implied, including merchantability, fitness for a
   particular purpose, non-infringement, accuracy, or uninterrupted and error-free operation.
-  No promise is made that any song, artist, search result, link or feature will remain
+  No promise is made that any song, video, artist, search result, link or feature will remain
   available, or that playback will work at any given time.
 </p>
 
@@ -38,16 +39,19 @@
 
 <h2>4. Music rights</h2>
 <p>
-  All songs, recordings, artwork and metadata belong to their respective artists, labels and
-  rights holders. EchoX grants you no licence to any music. You may not download, rip, capture
-  or redistribute audio obtained through EchoX, or use it to build a competing catalogue.
+  All songs, recordings, videos, artwork and metadata belong to their respective artists,
+  labels, channels and rights holders. EchoX grants you no licence to any music or video. You
+  may not download, rip, capture or redistribute audio or video obtained through EchoX, or use
+  it to build a competing catalogue.
 </p>
 
 <h2>5. Third-party services</h2>
 <p>
-  Playback and metadata depend on Audius, Apple (iTunes and Podcasts), Deezer and Radio Browser.
-  EchoX is not affiliated with, sponsored by or endorsed by any of them. Your use of those
-  services is also governed by their own terms and privacy policies.
+  Playback and metadata depend on Audius, Apple (iTunes and Podcasts), Deezer, Radio Browser and
+  YouTube (Google). EchoX is not affiliated with, sponsored by or endorsed by any of them. Your
+  use of those services is also governed by their own terms and privacy policies. In particular,
+  the embedded YouTube player is provided by Google and may set cookies or collect usage data
+  under Google's terms and privacy policy.
 </p>
 
 <h2>6. Acceptable use</h2>
@@ -124,6 +128,22 @@
     broadcaster's own stream.
   </li>
   <li>
+    <strong>YouTube Data API v3</strong> —
+    <a href="https://developers.google.com/youtube/v3" target="_blank" rel="noopener noreferrer">developers.google.com/youtube/v3</a><br />
+    Used for: music video search (<code>/search</code>), the most-popular music video chart
+    (<code>/videos?chart=mostPopular</code>) and public video metadata such as the description,
+    view, like and comment counts (<code>/videos?part=snippet,statistics</code>). Requests are
+    made directly from your browser with a public API key restricted to this site. No YouTube
+    account or personal credential is used.
+  </li>
+  <li>
+    <strong>YouTube IFrame Player API</strong> —
+    <a href="https://developers.google.com/youtube/iframe_api_reference" target="_blank" rel="noopener noreferrer">developers.google.com/youtube/iframe_api_reference</a><br />
+    Used for: playing embedded music videos with YouTube's own player. Playback depends on the
+    uploader allowing embeds and is subject to YouTube's terms of service; Google may set
+    cookies or collect data as described in its privacy policy.
+  </li>
+  <li>
     <strong>Astro</strong> —
     <a href="https://astro.build" target="_blank" rel="noopener noreferrer">astro.build</a><br />
     Not an API, but the static site framework EchoX is built with. The whole app ships as
@@ -131,10 +151,12 @@
   </li>
 </ul>
 <p>
-  No Spotify, YouTube or Apple Music account API is used, no music files are downloaded by
-  EchoX, and no API keys or personal credentials are stored by the site. Deezer previews and
-  podcast episodes are streamed exactly as their services provide them; live radio is played
-  straight from the broadcaster's stream.
+  No Spotify or Apple Music account API is used, and YouTube is only accessed through its
+  public Data API and embedded player — never through a user account. No music or video files
+  are downloaded by EchoX, and no personal credentials are stored by the site. The YouTube API
+  key is a public, site-restricted key that ships with the page; it is not a user secret. Deezer
+  previews, podcast episodes and YouTube videos are streamed exactly as their services provide
+  them; live radio is played straight from the broadcaster's stream.
 </p>
 
 <h2>11. Thank you</h2>
@@ -142,7 +164,8 @@
   Thank you to <strong>Audius</strong> for keeping an open, artist-first catalogue and a free
   API; to <strong>Apple</strong> for the iTunes Search and Podcasts APIs; to
   <strong>Deezer</strong> for a second global catalogue of previews; to <strong>Radio
-  Browser</strong> and every broadcaster who streams openly; to every independent artist who
+  Browser</strong> and every broadcaster who streams openly; to <strong>YouTube</strong> and
+  every creator who allows their videos to be embedded; to every independent artist who
   uploads music and lets people listen for free; and to the open-source community behind
   <strong>Astro</strong>.
 </p>

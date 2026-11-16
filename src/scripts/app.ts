@@ -111,6 +111,9 @@ const shareBy = el<HTMLParagraphElement>('share-by');
 const shareLink = el<HTMLInputElement>('share-link');
 const shareEmbed = el<HTMLInputElement>('share-embed');
 const sharePreview = el<HTMLIFrameElement>('share-preview');
+const confirmDialog = el<HTMLDialogElement>('confirm-dialog');
+const confirmOk = el<HTMLButtonElement>('confirm-ok');
+const confirmCancel = el<HTMLButtonElement>('confirm-cancel');
 const shareCopyLink = el<HTMLButtonElement>('share-copy-link');
 const shareCopyEmbed = el<HTMLButtonElement>('share-copy-embed');
 const shareNative = el<HTMLButtonElement>('share-native');
@@ -176,6 +179,7 @@ const homePodcastsHead = el<HTMLDivElement>('home-podcasts-head');
 const homePodcasts = el<HTMLDivElement>('home-podcasts');
 const homeRadioHead = el<HTMLDivElement>('home-radio-head');
 const homeRadio = el<HTMLDivElement>('home-radio');
+const homeClearHistory = el<HTMLButtonElement>('home-clear-history');
 const podcastsHeading = el<HTMLHeadingElement>('podcasts-heading');
 const podcastsHint = el<HTMLParagraphElement>('podcasts-hint');
 const podcastsBack = el<HTMLButtonElement>('podcasts-back');
@@ -1641,12 +1645,17 @@ np.addEventListener('keydown', (event) => {
 el<HTMLButtonElement>('detail-close').addEventListener('click', closeDetail);
 
 document.addEventListener('keydown', (event) => {
+  if (confirmDialog.open) return;
   if (event.key === 'Escape' && !np.hidden) {
     closeNowPlaying();
     return;
   }
   if (event.key === 'Escape' && currentView === 'terms') {
     closeTerms();
+    return;
+  }
+  if (event.key === 'Escape' && currentView === 'about') {
+    closeAbout();
     return;
   }
   if (event.key === 'Escape' && detailOpen) {
@@ -1662,11 +1671,12 @@ document.addEventListener('keydown', (event) => {
 
 /* ---------------- Views ---------------- */
 
-const views = ['home', 'search', 'videos', 'library', 'podcasts', 'radio', 'terms'] as const;
+const views = ['home', 'search', 'videos', 'library', 'podcasts', 'radio', 'terms', 'about'] as const;
 type View = (typeof views)[number];
 
 let currentView: View = 'home';
 let termsReturn: View = 'home';
+let aboutReturn: View = 'home';
 // Where the mobile search field returns to when it is dismissed.
 let searchReturn: View = 'home';
 
@@ -1735,13 +1745,15 @@ function setView(view: View, nav?: string) {
   document.title =
     view === 'terms'
       ? 'Terms & Conditions | echoX'
-      : view === 'podcasts'
-        ? 'Podcasts | echoX'
-        : view === 'radio'
-          ? 'Live radio | echoX'
-          : view === 'videos'
-            ? 'Videos | echoX'
-            : 'echoX | Free online music';
+      : view === 'about'
+        ? 'About echoX — Free Music, Videos, Radio & Podcasts'
+        : view === 'podcasts'
+          ? 'Podcasts | echoX'
+          : view === 'radio'
+            ? 'Live radio | echoX'
+            : view === 'videos'
+              ? 'Videos | echoX'
+              : 'echoX — Free Music, Music Videos, Radio & Podcasts';
   views.forEach((name) => {
     el<HTMLElement>(`view-${name}`).hidden = name !== view;
   });
@@ -1852,6 +1864,83 @@ document.querySelectorAll<HTMLAnchorElement>('[data-open-terms]').forEach((link)
 });
 
 el<HTMLButtonElement>('terms-close').addEventListener('click', closeTerms);
+
+/* ---------------- About, also without interrupting playback ---------------- */
+
+function openAbout() {
+  if (currentView !== 'about') aboutReturn = currentView;
+  setView('about');
+  closeDetail();
+  window.scrollTo({ top: 0 });
+}
+
+function closeAbout() {
+  setView(aboutReturn);
+  window.scrollTo({ top: 0 });
+}
+
+document.querySelectorAll<HTMLAnchorElement>('[data-open-about]').forEach((link) => {
+  link.addEventListener('click', (event) => {
+    event.preventDefault();
+    openAbout();
+  });
+});
+
+el<HTMLButtonElement>('about-close').addEventListener('click', closeAbout);
+
+/* ---------------- Confirmation dialog ---------------- */
+
+let confirmResolve: ((ok: boolean) => void) | null = null;
+
+function askConfirm(): Promise<boolean> {
+  return new Promise((resolve) => {
+    confirmResolve = resolve;
+    if (typeof confirmDialog.showModal === 'function') confirmDialog.showModal();
+    else confirmDialog.setAttribute('open', '');
+    confirmCancel.focus();
+  });
+}
+
+function settleConfirm(ok: boolean) {
+  const resolve = confirmResolve;
+  if (!resolve) return;
+  confirmResolve = null;
+  if (confirmDialog.open) confirmDialog.close();
+  else confirmDialog.removeAttribute('open');
+  resolve(ok);
+}
+
+confirmOk.addEventListener('click', () => settleConfirm(true));
+confirmCancel.addEventListener('click', () => settleConfirm(false));
+// Covers the close button and Escape, which dismiss the dialog natively.
+confirmDialog.addEventListener('close', () => settleConfirm(false));
+
+let clearHistoryTimer: number | undefined;
+
+homeClearHistory.addEventListener('click', async () => {
+  window.clearTimeout(clearHistoryTimer);
+  const resetLabel = () => {
+    clearHistoryTimer = window.setTimeout(() => {
+      homeClearHistory.textContent = 'Clear history';
+    }, 2200);
+  };
+  if (!history.length && stats.size === 0) {
+    homeClearHistory.textContent = 'History is already empty';
+    resetLabel();
+    return;
+  }
+  if (!(await askConfirm())) return;
+  history.length = 0;
+  stats.clear();
+  saveHistory();
+  saveStats();
+  renderHomePlayAgain();
+  renderHomeVideos();
+  renderLibrary();
+  renderVideoLibrary();
+  homeClearHistory.textContent = 'History cleared';
+  resetLabel();
+});
 
 // The logo jumps back to Home in-page instead of reloading, so audio keeps playing.
 document.querySelectorAll<HTMLAnchorElement>('.brand, .mobile-brand').forEach((link) => {

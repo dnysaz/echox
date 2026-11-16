@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import AboutArticle from '../components/AboutArticle.astro';
 import TermsArticle from '../components/TermsArticle.astro';
 ---
 
@@ -94,12 +95,13 @@ import TermsArticle from '../components/TermsArticle.astro';
         <h3>Audio sources</h3>
         <p>
           Full tracks from <strong>Audius</strong>, previews from <strong>Deezer</strong> and
-          <strong>iTunes</strong>, podcasts and live radio. No music files are hosted here.
+          <strong>iTunes</strong>, podcasts, live radio and <strong>YouTube</strong> music
+          videos. No music files are hosted here.
         </p>
       </div>
 
       <footer class="sidebar-foot">
-        Audio &amp; data: Audius, Deezer, Apple, Radio Browser.<br />
+        Audio, video &amp; data: Audius, Deezer, Apple, Radio Browser, YouTube.<br />
         <a href="/terms" data-open-terms>Terms &amp; conditions</a>
       </footer>
     </aside>
@@ -216,10 +218,10 @@ import TermsArticle from '../components/TermsArticle.astro';
       <section id="view-home" class="view">
         <div class="hero">
           <p class="eyebrow">Free · legal · no subscription</p>
-          <h1>Free Music, Radio<br />and Podcast Stream,<br />only for fun!</h1>
+          <h1>Free Music, Video, Radio<br />and Podcast Stream,<br />only for fun!</h1>
           <p class="sub">
-            Full tracks from Audius, previews from Deezer and iTunes, podcasts and live
-            radio. Every song plays straight from its official source.
+            Full tracks from Audius, previews from Deezer and iTunes, podcasts, live radio
+            and music videos from YouTube. Everything plays straight from its official source.
           </p>
           <p class="hero-note">
             A free hobby project — no guarantees, just for fun.
@@ -257,6 +259,19 @@ import TermsArticle from '../components/TermsArticle.astro';
           <span>Radio Browser</span>
         </div>
         <div class="home-row" id="home-radio" hidden></div>
+
+        <footer class="home-foot">
+          <div class="home-foot-links">
+            <button type="button" id="home-clear-history">Clear history</button>
+            <a href="/terms" data-open-terms>Terms</a>
+            <a href="/about" data-open-about>About</a>
+            <a href="https://github.com/dnysaz/echox/issues" target="_blank" rel="noopener noreferrer">Contact</a>
+          </div>
+          <p class="home-foot-note">
+            echoX is free, with no accounts and no ads. Music and videos stay on their
+            original sources.
+          </p>
+        </footer>
       </section>
 
       <section id="view-search" class="view" hidden>
@@ -381,6 +396,13 @@ import TermsArticle from '../components/TermsArticle.astro';
           <TermsArticle />
         </div>
       </section>
+
+      <section id="view-about" class="view" hidden>
+        <div class="legal legal-inline">
+          <button class="legal-back" id="about-close" type="button">← Back to music</button>
+          <AboutArticle />
+        </div>
+      </section>
     </main>
   </div>
 
@@ -494,6 +516,24 @@ import TermsArticle from '../components/TermsArticle.astro';
     </div>
 
     <button class="share-native" id="share-native" type="button" hidden>Share…</button>
+  </dialog>
+
+  <dialog class="share confirm" id="confirm-dialog" aria-labelledby="confirm-title">
+    <form method="dialog" class="share-head">
+      <h2 id="confirm-title">Clear history?</h2>
+      <button class="share-x" type="submit" aria-label="Cancel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6 18 18M18 6 6 18" />
+        </svg>
+      </button>
+    </form>
+    <p class="confirm-text">
+      This removes your play history and play counts from this device. Liked songs are kept.
+    </p>
+    <div class="confirm-actions">
+      <button class="confirm-cancel" id="confirm-cancel" type="button">Cancel</button>
+      <button class="confirm-ok" id="confirm-ok" type="button">Clear history</button>
+    </div>
   </dialog>
 
   <div class="np" id="np" hidden role="dialog" aria-modal="true" aria-labelledby="np-title">

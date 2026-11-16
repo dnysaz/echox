@@ -96,6 +96,7 @@ The service worker caches the app shell, icons and hashed build assets, so the i
 │   └── sw.js                # app-shell service worker
 ├── src/
 │   ├── components/
+│   │   ├── AboutArticle.astro # about copy shared by /about and the in-app view
 │   │   └── TermsArticle.astro # terms copy shared by /terms and the in-app view
 │   ├── layouts/
 │   │   └── Layout.astro     # <head>, meta tags, install banner
@@ -103,6 +104,7 @@ The service worker caches the app shell, icons and hashed build assets, so the i
 │   │   └── api.ts           # Audius, Deezer, iTunes, podcast, radio and YouTube clients
 │   ├── pages/
 │   │   ├── index.astro      # the player app and the Videos page
+│   │   ├── about.astro      # standalone about page
 │   │   ├── embed.astro      # minimal embeddable player for shared items
 │   │   └── terms.astro      # standalone terms page
 │   ├── scripts/
