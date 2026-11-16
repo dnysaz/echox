@@ -2625,6 +2625,9 @@ export function init() {
   paintRange(seek, 0);
   playBtn.innerHTML = playIcon;
   detailPlay.innerHTML = playIcon;
+  const syncTopbar = () => topbar.classList.toggle('is-scrolled', window.scrollY > 8);
+  syncTopbar();
+  window.addEventListener('scroll', syncTopbar, { passive: true });
   setView('home');
   renderLibrary();
   paintHomeBackdrops();
