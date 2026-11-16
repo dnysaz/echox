@@ -1,6 +1,6 @@
 # echoX
 
-**Free online music.** A small Spotify-style web player built with Astro, streaming full tracks from Audius, 30-second previews from Deezer and iTunes, podcast episodes and live radio — no accounts, no database, no backend.
+**Free online music.** A small Spotify-style web player built with Astro, streaming full tracks from Audius, 30-second previews from Deezer and iTunes, podcast episodes, live radio and YouTube music videos — no accounts, no database, no backend.
 
 ![Astro](https://img.shields.io/badge/Astro-7.x-ff5d01?logo=astro&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
@@ -8,11 +8,13 @@
 
 ## Features
 
-- **Home rows** — play again, trending, podcast series and live radio, each on a single swipeable row so the page stays short.
+- **Home rows** — play again, trending, videos you watched, podcast series and live radio, each on a single swipeable row so the page stays short.
 - **Trending** — a live selection of trending tracks from Audius when the page loads.
-- **Search** — the magnifier opens a full search page. From Home it queries Audius (full tracks), Deezer and iTunes (previews), Apple Podcasts and Radio Browser in parallel, songs first; searching from the Podcasts or Radio page only searches that source.
+- **Search** — the magnifier opens a full search page. From Home it queries Audius (full tracks), Deezer and iTunes (previews), Apple Podcasts, Radio Browser and YouTube in parallel, songs first; searching from the Videos page only searches YouTube, and from Podcasts or Radio only that source.
+- **Videos** — a dedicated Videos page with its own YouTube picks: *Videos for you* is built from what you play and search for on this device, falling back to YouTube's most-popular music videos. It keeps video-only *Play again* and *Mostly played* rows, shows the latest watched videos on Home, lists *More from channel* in the detail panel, and remembers the last list for six hours so repeat visits skip the API.
 - **Artist view** — clicking any card expands a full-width panel with the artwork, and lists everything else available from that artist.
 - **Playback** — a persistent player bar with play/pause, previous/next, seek and volume, plus the queue built from the list you are looking at.
+- **Video playback** — music videos play in an embedded YouTube player instead of the audio element, with a video-first full-screen view (video on top, title underneath, expand/PiP/fullscreen in the header). The now playing card previews the actual muted video with a fullscreen button, and the panel beside it shows the full description, view/like/comment counts and a **Watch on YouTube** link.
 - **Full-screen now playing** — the expand button next to Like (or the player cover) opens the artwork on a blurred copy of itself, with the source details the API returns: genre, mood, tags, release date, play/favorite/repost counts, album, episode length, station language, codec, bitrate and more, plus a link back to the original source.
 - **Share and embed** — every song, podcast episode and radio station has a share button in the detail panel, the player bar and the full-screen view. It produces a direct link (`/?t=…`) plus a Spotify-style `<iframe>` embed served from `/embed/`, with artwork, a blurred cover backdrop, play/pause, a seek bar and a backlink to echoX. The share sheet includes a **live, playable preview** of that embed plus the track title/description, and social previews use the `og.png` card.
 - **Library on this device** — play again, most played, recently played history and liked songs, all stored in `localStorage`.
@@ -30,9 +32,10 @@
 | Language  | TypeScript (strict)                                            |
 | Styling   | Plain CSS with custom properties in `src/styles/global.css`    |
 | Audio     | HTML5 `<audio>`, streamed directly from the source APIs        |
+| Video     | [YouTube IFrame Player API](https://developers.google.com/youtube/iframe_api_reference) with the YouTube Data API v3 |
 | Icons     | Inline SVG + a hand-made `public/favicon.svg` play-button mark |
 
-No UI framework, no CSS library, no client-side router — four TypeScript modules (API client, player logic, PWA glue and the embed player), one stylesheet and two shared Astro components.
+No UI framework, no CSS library, no client-side router — four TypeScript modules (API client, player logic, PWA glue and the embed player), one stylesheet and two shared Astro components. The only external service that needs a key is YouTube.
 
 ## Getting started
 
@@ -56,7 +59,19 @@ npm run build    # static site in ./dist
 npm run preview  # serve ./dist locally
 ```
 
-The build output is fully static, so it can be dropped on GitHub Pages, Netlify, Vercel, Cloudflare Pages or any static host. No environment variables or API keys are needed.
+The build output is fully static, so it can be dropped on GitHub Pages, Netlify, Vercel, Cloudflare Pages or any static host. No backend or database is needed.
+
+### YouTube videos
+
+Everything except the Videos page works with no configuration. To enable videos, add a YouTube Data API v3 key to `.env` (or the build environment):
+
+```bash
+PUBLIC_YOUTUBE_API_KEY=your-key-here
+```
+
+Create the key in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) after enabling **YouTube Data API v3**. The variable is prefixed with `PUBLIC_`, so the key ships in the client bundle — restrict it by HTTP referrer to your domain. Without a key the player still works and the Videos page simply explains that videos are not configured.
+
+YouTube gives 10,000 quota units per day; a search costs 100 and a video lookup costs 1. The app spends at most two searches per Videos refresh, caches the resulting list for six hours and caches per-video descriptions/counters for 24 hours.
 
 For share previews (`og:image`) to point at the absolute production URL, set `PUBLIC_SITE_URL` at build time, e.g. `PUBLIC_SITE_URL=https://echox.example npm run build`. Without it the relative `/og.png` is used.
 
@@ -85,9 +100,9 @@ The service worker caches the app shell, icons and hashed build assets, so the i
 │   ├── layouts/
 │   │   └── Layout.astro     # <head>, meta tags, install banner
 │   ├── lib/
-│   │   └── api.ts           # Audius, Deezer, iTunes, podcast and radio clients
+│   │   └── api.ts           # Audius, Deezer, iTunes, podcast, radio and YouTube clients
 │   ├── pages/
-│   │   ├── index.astro      # the player app
+│   │   ├── index.astro      # the player app and the Videos page
 │   │   ├── embed.astro      # minimal embeddable player for shared items
 │   │   └── terms.astro      # standalone terms page
 │   ├── scripts/
@@ -108,8 +123,9 @@ Astro renders the shell and `src/scripts/app.ts` runs on the client. All network
 - **iTunes Search API** — `GET /search?term=…&entity=song` and `/lookup?id={artistId}&entity=song`. Only `previewUrl` clips (usually 30 seconds) are playable.
 - **Apple Podcasts** — the same iTunes endpoint with `media=podcast&entity=podcastEpisode`; `previewUrl` serves the episode audio and `/lookup?id={collectionId}&entity=podcastEpisode` lists more episodes from a show.
 - **Radio Browser** — `GET https://de1.api.radio-browser.info/json/stations/search`, a free, keyless, community-run directory. Only HTTPS streams are offered, and audio plays straight from the broadcaster.
+- **YouTube** — `GET /youtube/v3/search?part=snippet&type=video&videoEmbeddable=true` for picks based on your recent plays and searches, `GET /youtube/v3/videos?chart=mostPopular&videoCategoryId=10` as the one-unit fallback, and `GET /youtube/v3/videos?part=snippet,statistics&id=…` for the description and counters shown beside the video. Playback uses the IFrame Player API from `https://www.youtube.com/iframe_api`; only videos that allow embedding are offered.
 
-Tracks are never downloaded or re-hosted; audio is played from the original source. A unified `Track` type normalizes every source (with a `live` flag for radio) so the UI does not care where a song came from.
+Tracks are never downloaded or re-hosted; audio is played from the original source. A unified `Track` type normalizes every source (with a `live` flag for radio and a `videoId` for YouTube) so the UI does not care where a song came from.
 
 ### Shared links and embeds
 
@@ -118,6 +134,7 @@ Share links use `/?t=<source>:<id>` and embeds use `/embed/?t=<source>:<id>`. A 
 ## Notes and limitations
 
 - Deezer and iTunes tracks are **30-second previews only**; full songs come from Audius and podcast episodes come from Apple's podcast feeds. Radio is live and cannot be seeked.
+- Videos need `PUBLIC_YOUTUBE_API_KEY`; without it the Videos page stays empty and explains why. Playback also depends on the uploader allowing embeds and on the daily YouTube quota.
 - Availability and audio quality depend entirely on the upstream APIs and can change without notice.
 - The Audius free tier allows roughly 10 requests/second and 500k requests/month per app name — fine for personal use, but don't hammer it.
 - Liked songs, history, play counts, the current queue and volume live in `localStorage`, so they do not sync across devices.

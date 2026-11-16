@@ -670,7 +670,7 @@ function fromYouTubeItem(item: YouTubeSearchItem): YouTubeVideo | null {
 
 /** Search YouTube videos (used for the "Videos" section and music videos). */
 export async function searchYouTubeVideos(query: string, maxResults = 12): Promise<YouTubeVideo[]> {
-  if (!hasYouTubeApiKey() || !query.trim()) { console.log('YTS early-return', hasYouTubeApiKey(), query); return []; }
+  if (!hasYouTubeApiKey() || !query.trim()) return [];
   const params = new URLSearchParams({
     key: YOUTUBE_API_KEY,
     q: query,
@@ -684,7 +684,6 @@ export async function searchYouTubeVideos(query: string, maxResults = 12): Promi
   const data = await getJson<{ items?: YouTubeSearchItem[] }>(
     `${YOUTUBE_API_BASE}/search?${params.toString()}`
   );
-  console.log('YTS', query, 'items:', data?.items?.length);
   return (data?.items ?? [])
     .map(fromYouTubeItem)
     .filter((video): video is YouTubeVideo => video !== null);
