@@ -479,6 +479,35 @@ input[type="search"]::-webkit-search-results-decoration {
   text-overflow: ellipsis;
 }
 
+/* The "View more" card that closes every Home row. */
+.card-more .card-art {
+  display: grid;
+  place-items: center;
+  border: 1px dashed #3a3a46;
+  background:
+    radial-gradient(120% 120% at 20% 0%, rgba(255, 122, 0, .22), transparent 60%),
+    var(--panel);
+}
+.card-more .card-art::after { display: none; }
+.card-more .card-title { color: var(--accent); }
+.card-more-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .06);
+  color: var(--accent);
+  transition: transform .16s, background .16s, color .16s;
+}
+.card-more:hover .card-more-icon {
+  transform: translateX(2px);
+  background: var(--accent);
+  color: #1c0d00;
+}
+.card-more-icon svg { width: 20px; height: 20px; }
+
 .card-eq {
   position: absolute;
   left: 10px;

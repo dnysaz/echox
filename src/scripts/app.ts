@@ -578,13 +578,36 @@ function makeCard(track: Track, list: Track[], position: number): HTMLButtonElem
   return card;
 }
 
-function renderGrid(container: HTMLElement, tracks: Track[]) {
+function renderGrid(container: HTMLElement, tracks: Track[], more?: HomeMore) {
   container.innerHTML = '';
   const grid = document.createElement('div');
   grid.className = 'grid';
   tracks.forEach((track, i) => grid.append(makeCard(track, tracks, i)));
+  if (more) grid.append(makeViewMoreCard(more));
   container.append(grid);
   syncPlayingCards();
+}
+
+type HomeMore = { label: string; view: View };
+
+/** The extra card at the end of a Home row, linking to the matching view. */
+function makeViewMoreCard(more: HomeMore): HTMLButtonElement {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'card card-more';
+  card.innerHTML = `
+    <div class="card-art">
+      <span class="card-more-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
+      </span>
+    </div>
+    <div class="card-title">View more</div>
+    <div class="card-artist">${escapeHtml(more.label)}</div>
+  `;
+  card.addEventListener('click', () => {
+    document.querySelector<HTMLButtonElement>(`[data-view="${more.view}"]`)?.click();
+  });
+  return card;
 }
 
 function makeShowCard(show: Show): HTMLButtonElement {
@@ -603,11 +626,12 @@ function makeShowCard(show: Show): HTMLButtonElement {
   return card;
 }
 
-function renderShowGrid(container: HTMLElement, shows: Show[]) {
+function renderShowGrid(container: HTMLElement, shows: Show[], more?: HomeMore) {
   container.innerHTML = '';
   const grid = document.createElement('div');
   grid.className = 'grid';
   shows.forEach((show) => grid.append(makeShowCard(show)));
+  if (more) grid.append(makeViewMoreCard(more));
   container.append(grid);
 }
 
@@ -1968,7 +1992,7 @@ async function loadHome() {
       showStatus(trendingGrid, 'No playable songs right now.');
       return;
     }
-    renderGrid(trendingGrid, tracks);
+    renderGrid(trendingGrid, tracks.slice(0, 10), { label: 'All songs', view: 'search' });
     renderGenreChips(tracks);
   } catch {
     showStatus(trendingGrid, 'Could not reach Audius. Check your connection and reload.', true);
@@ -2030,7 +2054,7 @@ function renderHomeVideos() {
   homeVideosHead.hidden = tracks.length === 0;
   homeVideos.hidden = tracks.length === 0;
   homeVideos.innerHTML = '';
-  if (tracks.length) renderGrid(homeVideos, tracks);
+  if (tracks.length) renderGrid(homeVideos, tracks, { label: 'All videos', view: 'videos' });
 }
 
 /** Video-only "Play again" and "Mostly played" rows on the Videos page. */
@@ -2346,11 +2370,13 @@ function paintHomeBackdrops() {
 }
 
 function renderHomePlayAgain() {
-  const recent = history.slice(0, 6);
+  const recent = history.slice(0, 10);
   homePlayAgainHead.hidden = recent.length === 0;
   homePlayAgain.hidden = recent.length === 0;
   homePlayAgain.innerHTML = '';
-  if (recent.length) renderGrid(homePlayAgain, recent.map((entry) => entry.track));
+  if (recent.length) {
+    renderGrid(homePlayAgain, recent.map((entry) => entry.track), { label: 'All history', view: 'library' });
+  }
   paintHomeBackdrops();
 }
 
@@ -2362,7 +2388,7 @@ async function loadHomeExtras() {
     homePodcastsHead.hidden = !hasShows;
     homePodcasts.hidden = !hasShows;
     homePodcasts.innerHTML = '';
-    if (hasShows) renderShowGrid(homePodcasts, shows.slice(0, 6));
+    if (hasShows) renderShowGrid(homePodcasts, shows.slice(0, 10), { label: 'All shows', view: 'podcasts' });
   } catch {
     homePodcastsHead.hidden = true;
     homePodcasts.hidden = true;
@@ -2373,7 +2399,7 @@ async function loadHomeExtras() {
     homeRadioHead.hidden = !hasStations;
     homeRadio.hidden = !hasStations;
     homeRadio.innerHTML = '';
-    if (hasStations) renderGrid(homeRadio, stations.slice(0, 6));
+    if (hasStations) renderGrid(homeRadio, stations.slice(0, 10), { label: 'All stations', view: 'radio' });
   } catch {
     homeRadioHead.hidden = true;
     homeRadio.hidden = true;
