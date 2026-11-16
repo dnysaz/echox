@@ -156,15 +156,10 @@ img { display: block; }
   gap: 14px;
   padding: 16px 0;
   background: transparent;
-  transition: background .25s ease, backdrop-filter .25s ease;
 }
 
-/* Only scrim the bar once content scrolls beneath it, so the artwork stays
-   visible behind the title and search field at the top of the page. */
-.topbar.is-scrolled {
-  background: linear-gradient(to bottom, rgba(8,8,10,.94) 60%, rgba(8,8,10,0));
-  backdrop-filter: blur(8px);
-}
+/* The bar never paints a band of its own: the search field is already a pill,
+   so the artwork stays visible behind it at every scroll position. */
 
 .search { position: relative; flex: 1; max-width: 460px; }
 .search svg {
@@ -1261,19 +1256,38 @@ input[type="range"]::-moz-range-thumb {
     padding: calc(10px + var(--safe-top)) 0 10px;
     gap: 10px;
   }
+  /* Only the title and search control get a small backdrop when the page is
+     scrolled; the bar itself stays transparent. */
+  .topbar.is-scrolled .mobile-brand {
+    margin-left: -10px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(8, 8, 10, .5);
+    backdrop-filter: blur(10px);
+    text-shadow: none;
+  }
+  .topbar.is-scrolled .search-toggle {
+    padding: 5px 10px;
+    border-radius: 14px;
+    background: rgba(8, 8, 10, .5);
+    backdrop-filter: blur(10px);
+    text-shadow: none;
+  }
   .pill { display: none; }
   .search { max-width: none; }
   .search input { font-size: 16px; padding: 12px 14px 12px 40px; }
 
   .mobile-brand {
     display: block;
-    flex: 1;
+    flex: none;
+    margin-right: auto;
     min-width: 0;
     font-size: 22px;
     font-weight: 800;
     letter-spacing: -.6px;
     color: var(--text);
     text-decoration: none;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .8), 0 4px 18px rgba(0, 0, 0, .6);
   }
   /* Same icon + label shape as the bottom navigation items. */
   .search-toggle {
@@ -1288,8 +1302,13 @@ input[type="range"]::-moz-range-thumb {
     background: transparent;
     color: var(--muted);
     cursor: pointer;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .8);
   }
-  .search-toggle svg { width: 21px; height: 21px; }
+  .search-toggle svg {
+    width: 21px;
+    height: 21px;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .8));
+  }
   .search-toggle-label { display: block; font-size: 10.5px; font-weight: 600; }
   .search-toggle:active { background: var(--panel-2); color: var(--text); }
 
