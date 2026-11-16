@@ -8,6 +8,7 @@ const title = 'echoX player';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex" />
+    <meta name="description" content="echoX: free music, radio and podcasts. Stream full tracks from Audius, previews from Deezer and iTunes, podcast episodes and live radio." />
     <meta name="theme-color" content="#08080a" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
@@ -118,6 +119,15 @@ const title = 'echoX player';
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .desc {
+        margin: 3px 0 0;
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
       .play {
         width: 46px;
@@ -196,6 +206,7 @@ const title = 'echoX player';
             <p class="kicker" id="kicker">echoX</p>
             <p class="title" id="title">Loading…</p>
             <p class="artist" id="artist"></p>
+            <p class="desc" id="desc"></p>
           </div>
           <button class="play" id="play" type="button" aria-label="Play" disabled>
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>

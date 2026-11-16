@@ -12,6 +12,7 @@ const artist = el<HTMLParagraphElement>('artist');
 const progress = el<HTMLDivElement>('progress');
 const fill = el<HTMLSpanElement>('fill');
 const time = el<HTMLSpanElement>('time');
+const desc = el<HTMLParagraphElement>('desc');
 const cta = el<HTMLAnchorElement>('cta');
 const error = el<HTMLParagraphElement>('error');
 
@@ -33,6 +34,7 @@ function render(track: Track) {
   current = track;
   title.textContent = track.title;
   artist.textContent = track.artist;
+  desc.textContent = (track.description ?? '').trim();
   kicker.textContent = `echoX · ${sourceLabel(track)}`;
   document.title = `${track.title} — echoX`;
 

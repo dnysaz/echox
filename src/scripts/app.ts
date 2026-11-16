@@ -69,6 +69,7 @@ const shareName = el<HTMLParagraphElement>('share-name');
 const shareBy = el<HTMLParagraphElement>('share-by');
 const shareLink = el<HTMLInputElement>('share-link');
 const shareEmbed = el<HTMLInputElement>('share-embed');
+const sharePreview = el<HTMLIFrameElement>('share-preview');
 const shareCopyLink = el<HTMLButtonElement>('share-copy-link');
 const shareCopyEmbed = el<HTMLButtonElement>('share-copy-embed');
 const shareNative = el<HTMLButtonElement>('share-native');
@@ -788,7 +789,7 @@ async function copyValue(value: string, button: HTMLButtonElement) {
 }
 
 function openShare(track: Track) {
-  const { link, code } = shareLinks(track);
+  const { link, embed, code } = shareLinks(track);
   shareArt.innerHTML = '';
   if (track.artwork) {
     const img = document.createElement('img');
@@ -803,6 +804,8 @@ function openShare(track: Track) {
   shareBy.textContent = track.artist;
   shareLink.value = link;
   shareEmbed.value = code;
+  // Load the real embed page so the preview can actually be played.
+  if (sharePreview.src !== embed) sharePreview.src = embed;
   resetCopy(shareCopyLink, 'Copy');
   resetCopy(shareCopyEmbed, 'Copy');
   shareNative.hidden = typeof navigator.share !== 'function';
@@ -1049,6 +1052,9 @@ npShare.addEventListener('click', () => {
 });
 shareCopyLink.addEventListener('click', () => void copyValue(shareLink.value, shareCopyLink));
 shareCopyEmbed.addEventListener('click', () => void copyValue(shareEmbed.value, shareCopyEmbed));
+shareDialog.addEventListener('close', () => {
+  sharePreview.src = 'about:blank';
+});
 shareNative.addEventListener('click', async () => {
   if (!current) return;
   const { link } = shareLinks(current);

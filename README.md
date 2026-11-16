@@ -14,7 +14,7 @@
 - **Artist view** — clicking any card expands a full-width panel with the artwork, and lists everything else available from that artist.
 - **Playback** — a persistent player bar with play/pause, previous/next, seek and volume, plus the queue built from the list you are looking at.
 - **Full-screen now playing** — the expand button next to Like (or the player cover) opens the artwork on a blurred copy of itself, with the source details the API returns: genre, mood, tags, release date, play/favorite/repost counts, album, episode length, station language, codec, bitrate and more, plus a link back to the original source.
-- **Share and embed** — every song, podcast episode and radio station has a share button in the detail panel, the player bar and the full-screen view. It produces a direct link (`/?t=…`) plus a Spotify-style `<iframe>` embed served from `/embed/`, with artwork, a blurred cover backdrop, play/pause, a seek bar and a backlink to echoX.
+- **Share and embed** — every song, podcast episode and radio station has a share button in the detail panel, the player bar and the full-screen view. It produces a direct link (`/?t=…`) plus a Spotify-style `<iframe>` embed served from `/embed/`, with artwork, a blurred cover backdrop, play/pause, a seek bar and a backlink to echoX. The share sheet includes a **live, playable preview** of that embed plus the track title/description, and social previews use the `og.png` card.
 - **Library on this device** — play again, most played, recently played history and liked songs, all stored in `localStorage`.
 - **Resume after reload** — the last played song, its queue and its position are restored, and playback continues automatically when the browser allows it.
 - **Live radio and podcasts** — community radio stations (HTTPS streams only) and podcast series with full episodes; the radio page loads 20 stations at a time with a *Load more* button, and tapping the now-playing radio title lists the other stations from the same country.
@@ -57,6 +57,8 @@ npm run preview  # serve ./dist locally
 ```
 
 The build output is fully static, so it can be dropped on GitHub Pages, Netlify, Vercel, Cloudflare Pages or any static host. No environment variables or API keys are needed.
+
+For share previews (`og:image`) to point at the absolute production URL, set `PUBLIC_SITE_URL` at build time, e.g. `PUBLIC_SITE_URL=https://echox.example npm run build`. Without it the relative `/og.png` is used.
 
 ### Install as an app
 

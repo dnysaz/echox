@@ -1319,6 +1319,7 @@ input[type="range"]::-moz-range-thumb {
   background: #121216;
   color: var(--text);
   box-shadow: 0 30px 70px rgba(0, 0, 0, .6);
+  overflow-y: auto;
 }
 .share::backdrop { background: rgba(4, 4, 6, .7); }
 .share-head {
@@ -1385,6 +1386,30 @@ input[type="range"]::-moz-range-thumb {
   text-overflow: ellipsis;
 }
 
+.share-field { margin-top: 14px; }
+.share-preview {
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #0d0d11;
+  padding: 10px;
+}
+.share-preview > span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #777783;
+}
+.share-preview iframe { display: block; width: 100%; border: 0; border-radius: 10px; background: #08080a; }
+.share-note {
+  margin: 8px 2px 0;
+  font-size: 11px;
+  color: #7d7d8a;
+  line-height: 1.45;
+}
 .share-field { margin-top: 14px; }
 .share-field > span {
   display: block;

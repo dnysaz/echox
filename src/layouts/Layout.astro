@@ -3,9 +3,13 @@ import '../styles/global.css';
 
 interface Props {
   title?: string;
+  description?: string;
 }
 
-const { title = 'echoX | Free online music' } = Astro.props;
+const { title = 'echoX | Free online music', description = 'echoX: free music, radio and podcasts. Stream full tracks from Audius, 30-second previews from Deezer and iTunes, podcast episodes and live radio.' } = Astro.props;
+const site = Astro.site;
+const canonical = site ? new URL(Astro.url.pathname, site).toString() : Astro.url.pathname;
+const ogImage = site ? new URL('/og.png', site).toString() : '/og.png';
 ---
 
 <!doctype html>
@@ -16,10 +20,7 @@ const { title = 'echoX | Free online music' } = Astro.props;
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
-    <meta
-      name="description"
-      content="echoX: free music, radio and podcasts. Stream full tracks from Audius, 30-second previews from Deezer and iTunes, podcast episodes and live radio."
-    />
+    <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -31,6 +32,20 @@ const { title = 'echoX | Free online music' } = Astro.props;
     <meta name="apple-mobile-web-app-title" content="echoX" />
     <meta name="format-detection" content="telephone=no" />
     <meta name="generator" content={Astro.generator} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="echoX" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="echoX — free music, radio and podcasts on a blurred cover-art backdrop" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <title>{title}</title>
   </head>
   <body>
