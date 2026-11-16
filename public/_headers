@@ -1,0 +1,6 @@
+# The /embed/ player is meant to be shared as an iframe, so it must be
+# framable by other sites. X-Frame-Options SAMEORIGIN (set at the edge for the
+# app) takes over unless a frame-ancestors rule is present, so this overrides it
+# for the embed route only.
+/embed/*:
+  Content-Security-Policy: frame-ancestors *
