@@ -173,8 +173,11 @@ const itunesResults = el<HTMLDivElement>('itunes-results');
 const podcastResults = el<HTMLDivElement>('podcast-results');
 const radioResults = el<HTMLDivElement>('radio-results');
 const videoResults = el<HTMLDivElement>('video-results');
+const homePlayAgainBlock = el<HTMLDivElement>('home-play-again-block');
 const homePlayAgainHead = el<HTMLDivElement>('home-play-again-head');
 const homePlayAgain = el<HTMLDivElement>('home-play-again');
+const heroBg = el<HTMLDivElement>('hero-bg');
+const playAgainBg = el<HTMLDivElement>('home-play-again-bg');
 const homePodcastsHead = el<HTMLDivElement>('home-podcasts-head');
 const homePodcasts = el<HTMLDivElement>('home-podcasts');
 const homeRadioHead = el<HTMLDivElement>('home-radio-head');
@@ -1052,6 +1055,7 @@ function playQueue(list: Track[], position: number) {
 
 function loadTrack(track: Track, autoplay: boolean) {
   current = track;
+  paintHomeBackdrops();
   player.classList.remove('disabled');
   nowTitle.textContent = track.title;
   nowArtist.textContent = track.artist;
@@ -2294,12 +2298,32 @@ async function loadRadio(reset = true) {
 
 radioMore.addEventListener('click', () => void loadRadio(false));
 
+// Soft, blurred artwork behind the hero and Play again, so the page takes on
+// the colour of whatever was played last instead of staying plain black.
+function setArtBackdrop(element: HTMLElement, track: Track | null | undefined) {
+  if (!track?.artwork) {
+    element.style.backgroundImage = '';
+    element.classList.remove('has-art');
+    return;
+  }
+  const art = track.artwork.replace(/"/g, '%22');
+  element.style.backgroundImage = `linear-gradient(180deg, rgba(8, 8, 10, .28), rgba(8, 8, 10, .72)), url("${art}")`;
+  element.classList.add('has-art');
+}
+
+function paintHomeBackdrops() {
+  setArtBackdrop(heroBg, current ?? history[0]?.track);
+  setArtBackdrop(playAgainBg, history[0]?.track ?? current);
+}
+
 function renderHomePlayAgain() {
   const recent = history.slice(0, 6);
+  homePlayAgainBlock.hidden = recent.length === 0;
   homePlayAgainHead.hidden = recent.length === 0;
   homePlayAgain.hidden = recent.length === 0;
   homePlayAgain.innerHTML = '';
   if (recent.length) renderGrid(homePlayAgain, recent.map((entry) => entry.track));
+  paintHomeBackdrops();
 }
 
 async function loadHomeExtras() {
@@ -2549,6 +2573,7 @@ export function init() {
   detailPlay.innerHTML = playIcon;
   setView('home');
   renderLibrary();
+  paintHomeBackdrops();
   restorePlayback();
   const shared = new URLSearchParams(location.search).get('t');
   if (shared) void openSharedTrack(shared);

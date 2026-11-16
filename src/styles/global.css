@@ -286,6 +286,31 @@ input[type="search"]::-webkit-search-results-decoration {
   scroll-snap-align: start;
 }
 
+/* Blurred artwork behind the hero and the Play again row. */
+.hero,
+.play-again-block { position: relative; isolation: isolate; }
+.hero-bg,
+.row-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 22px;
+  background-position: center;
+  background-size: cover;
+  filter: blur(26px) saturate(1.35);
+  opacity: 0;
+  transition: opacity .4s ease;
+  pointer-events: none;
+}
+.hero-bg.has-art { opacity: .5; }
+.row-bg.has-art { opacity: .45; }
+.play-again-block {
+  padding: 14px 14px 8px;
+  margin-top: 6px;
+  border-radius: 22px;
+}
+.play-again-block .section-head { margin-top: 0; }
+
 .home-foot {
   display: flex;
   flex-wrap: wrap;
