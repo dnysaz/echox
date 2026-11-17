@@ -11,9 +11,9 @@ import {
   getTrendingMusicVideos,
   getYouTubeVideoDetails,
   hasYouTubeApiKey,
+  hasJamendoKey,
   searchAudius,
-  searchDeezer,
-  searchItunes,
+  searchJamendo,
   searchPodcasts,
   searchRadio,
   searchYouTubeVideos,
@@ -31,13 +31,25 @@ const VOLUME_KEY = 'echox:volume';
 const SEARCHES_KEY = 'echox:searches';
 const VIDEO_CACHE_KEY = 'echox:youtube-videos';
 const VIDEO_DETAILS_KEY = 'echox:youtube-details';
+const PLAYLISTS_KEY = 'echox:playlists';
 const HISTORY_MAX = 40;
 const STATS_MAX = 200;
 const LIKED_MAX = 200;
+const PLAYLISTS_MAX = 40;
+const PLAYLIST_TRACKS_MAX = 500;
 const SEARCHES_MAX = 8;
 const VIDEO_CACHE_TTL = 6 * 60 * 60 * 1000;
 const VIDEO_DETAILS_TTL = 24 * 60 * 60 * 1000;
-const TRACK_SOURCES = new Set(['audius', 'deezer', 'itunes', 'podcast', 'radio', 'youtubeVideo']);
+const TRACK_SOURCES = new Set([
+  'audius',
+  'jamendo',
+  // Legacy preview sources, kept so saved tracks still load.
+  'deezer',
+  'itunes',
+  'podcast',
+  'radio',
+  'youtubeVideo',
+]);
 
 const playIcon =
   '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
@@ -112,6 +124,8 @@ const shareLink = el<HTMLInputElement>('share-link');
 const shareEmbed = el<HTMLInputElement>('share-embed');
 const sharePreview = el<HTMLIFrameElement>('share-preview');
 const confirmDialog = el<HTMLDialogElement>('confirm-dialog');
+const confirmTitle = el<HTMLHeadingElement>('confirm-title');
+const confirmText = el<HTMLParagraphElement>('confirm-text');
 const confirmOk = el<HTMLButtonElement>('confirm-ok');
 const confirmCancel = el<HTMLButtonElement>('confirm-cancel');
 const shareCopyLink = el<HTMLButtonElement>('share-copy-link');
@@ -129,6 +143,9 @@ const npDesc = el<HTMLParagraphElement>('np-desc');
 const npInfo = el<HTMLDListElement>('np-info');
 const npFacts = el<HTMLElement>('np-facts');
 const npFactsTitle = el<HTMLHeadingElement>('np-facts-title');
+const npList = el<HTMLElement>('np-list');
+const npListTitle = el<HTMLHeadingElement>('np-list-title');
+const npTracks = el<HTMLDivElement>('np-tracks');
 const npLink = el<HTMLAnchorElement>('np-link');
 const npLike = el<HTMLButtonElement>('np-like');
 const npPlay = el<HTMLButtonElement>('np-play');
@@ -163,14 +180,12 @@ const searchInput = el<HTMLInputElement>('search-input');
 const searchHeading = el<HTMLHeadingElement>('search-heading');
 const searchHint = el<HTMLParagraphElement>('search-hint');
 const audiusHead = el<HTMLDivElement>('audius-head');
-const deezerHead = el<HTMLDivElement>('deezer-head');
-const itunesHead = el<HTMLDivElement>('itunes-head');
+const jamendoHead = el<HTMLDivElement>('jamendo-head');
 const podcastHead = el<HTMLDivElement>('podcast-head');
 const radioHead = el<HTMLDivElement>('radio-head');
 const videoHead = el<HTMLDivElement>('video-head');
 const audiusResults = el<HTMLDivElement>('audius-results');
-const deezerResults = el<HTMLDivElement>('deezer-results');
-const itunesResults = el<HTMLDivElement>('itunes-results');
+const jamendoResults = el<HTMLDivElement>('jamendo-results');
 const podcastResults = el<HTMLDivElement>('podcast-results');
 const radioResults = el<HTMLDivElement>('radio-results');
 const videoResults = el<HTMLDivElement>('video-results');
@@ -235,6 +250,14 @@ interface SavedPlayback {
 const liked = new Map<string, Track>(loadLiked());
 const history: HistoryEntry[] = loadHistory();
 const stats = new Map<string, PlayStat>(loadStats());
+const playlists: Playlist[] = loadPlaylists();
+
+interface Playlist {
+  id: string;
+  name: string;
+  createdAt: number;
+  tracks: Track[];
+}
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) =>
@@ -262,6 +285,31 @@ function saveLiked() {
     localStorage.setItem(LIKED_KEY, JSON.stringify([...liked.values()]));
   } catch {
     /* storage full or blocked: keep the in-memory likes */
+  }
+}
+
+// Playlists keep a full snapshot of every track, not just an id: only Audius can
+// be looked up again by id, and the other sources need the title, artwork and
+// stream URL that were known when the track was saved.
+function loadPlaylists(): Playlist[] {
+  const stored = readStore<Playlist[]>(PLAYLISTS_KEY, []);
+  if (!Array.isArray(stored)) return [];
+  return stored
+    .filter((item) => !!item && typeof item.id === 'string' && typeof item.name === 'string')
+    .slice(0, PLAYLISTS_MAX)
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      createdAt: typeof item.createdAt === 'number' ? item.createdAt : Date.now(),
+      tracks: Array.isArray(item.tracks) ? item.tracks.filter(isTrack).map(normalizeTrack) : [],
+    }));
+}
+
+function savePlaylists() {
+  try {
+    localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(playlists));
+  } catch {
+    /* storage full or blocked: the playlist still lives in memory */
   }
 }
 
@@ -484,6 +532,24 @@ function coverMarkup(track: Pick<Track, 'artwork'>, size: 'sm' | 'md' | 'lg'): s
   return `${fallback}<img loading="lazy" src="${escapeHtml(track.artwork)}" alt="" data-cover />`;
 }
 
+// A playlist has no artwork of its own: build its cover from the covers of the
+// tracks inside it, up to a 2x2 grid.
+function playlistCover(playlist: Playlist, size: 'md' | 'lg'): string {
+  const fallback = `<span class="art-fallback art-fallback-${size}" aria-hidden="true">
+    <span class="art-fallback-mark">♪</span>
+    <span class="art-fallback-word">echo<span class="brand-x">X</span></span>
+  </span>`;
+  const covers = playlist.tracks
+    .map((track) => track.artwork)
+    .filter((src): src is string => typeof src === 'string' && src.length > 0)
+    .slice(0, 4);
+  if (!covers.length) return fallback;
+  const cells = covers
+    .map((src) => `<img src="${escapeHtml(src)}" alt="" loading="lazy" data-cover />`)
+    .join('');
+  return `${fallback}<div class="pl-cover pl-cover-${covers.length}">${cells}</div>`;
+}
+
 // A broken cover reveals the branded fallback behind it. One capture-phase
 // listener replaces per-image inline handlers, which a strict CSP would block.
 document.addEventListener(
@@ -501,6 +567,8 @@ function artistKey(track: Track): string {
   switch (track.source) {
     case 'audius':
       return `audius:${track.artistHandle ?? track.artist}`;
+    case 'jamendo':
+      return `jamendo:${track.artistId ?? track.artist}`;
     case 'deezer':
       return `deezer:${track.artistId ?? track.artist}`;
     case 'podcast':
@@ -515,6 +583,7 @@ function artistKey(track: Track): string {
 function sourceBadge(track: Track): { label: string; className: string } {
   switch (track.source) {
     case 'audius':
+    case 'jamendo':
       return { label: 'FULL', className: '' };
     case 'radio':
       return { label: 'LIVE', className: ' live' };
@@ -531,6 +600,7 @@ function sourceMeta(track: Track, short = false): string {
   const labels = short
     ? {
         audius: 'AUDIUS · FULL TRACK',
+        jamendo: 'JAMENDO · FULL TRACK',
         deezer: 'DEEZER · 30S PREVIEW',
         itunes: 'APPLE MUSIC · 30S PREVIEW',
         podcast: 'APPLE PODCASTS · EPISODE',
@@ -539,6 +609,7 @@ function sourceMeta(track: Track, short = false): string {
       }
     : {
         audius: 'Audius · full track',
+        jamendo: 'Jamendo · full track',
         deezer: 'Deezer · 30s preview',
         itunes: 'Apple Music · 30s preview',
         podcast: 'Apple Podcasts · episode',
@@ -862,8 +933,77 @@ function syncVibe() {
 
 /* ---------------- Full-screen now playing ---------------- */
 
+function makeNpPlaylistRow(playlist: Playlist, track: Track, position: number): HTMLButtonElement {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'row';
+  row.dataset.trackId = track.id;
+  row.classList.toggle('playing', track.id === current?.id);
+  row.innerHTML = `
+    <span class="row-index">${position + 1}</span>
+    <span class="row-art">${coverMarkup(track, 'sm')}</span>
+    <span class="row-info">
+      <span class="row-title">${escapeHtml(track.title)}</span>
+      <span class="row-artist">${escapeHtml(track.artist)}</span>
+    </span>
+    <span class="row-dur">${track.live ? 'LIVE' : formatTime(track.duration)}</span>
+    <span class="row-play">${iconFor(track)}</span>
+  `;
+  row.addEventListener('click', () => {
+    playQueue(playlist.tracks.slice(), position, { id: playlist.id, name: playlist.name });
+  });
+  return row;
+}
+
+function iconFor(track: Track): string {
+  const playing = track.id === current?.id && !audio.paused;
+  return playing ? pauseIcon : playIcon;
+}
+
+// Playing from a playlist opens a playlist-flavoured now playing sheet: the
+// playlist cover, its name and only the tracks it contains.
+function renderPlaylistNowPlaying(playlist: Playlist, track: Track) {
+  np.classList.add('is-playlist');
+  npArt.innerHTML = playlistCover(playlist, 'lg');
+  const firstCover = playlist.tracks.find((item) => !!item.artwork)?.artwork;
+  npAmbient.style.backgroundImage = firstCover ? `url(${JSON.stringify(firstCover)})` : 'none';
+  npTitle.textContent = playlist.name;
+  const count = playlist.tracks.length;
+  npArtist.textContent = `${count} ${count === 1 ? 'track' : 'tracks'} · ${track.artist}`;
+  // Keep this short: on a phone the eyebrow shares one line with the icons.
+  npSource.textContent = 'PLAYLIST';
+  npDesc.hidden = true;
+  npDesc.textContent = '';
+  npLike.disabled = false;
+  npShare.disabled = false;
+  npAdd.disabled = false;
+  npLike.classList.toggle('liked', liked.has(track.id));
+  npProgress.hidden = track.live === true || !!track.videoId;
+  npCur.textContent = '0:00';
+  npDur.textContent = track.live ? 'LIVE' : formatTime(track.duration);
+  paintRange(npSeek, 0);
+  npLink.hidden = true;
+  npDetail.hidden = true;
+  npFacts.hidden = true;
+  npInfo.innerHTML = '';
+  npList.hidden = false;
+  npListTitle.textContent = `In ${playlist.name}`;
+  npTracks.innerHTML = '';
+  playlist.tracks.forEach((item, i) => npTracks.append(makeNpPlaylistRow(playlist, item, i)));
+  syncNowPlaying();
+}
+
 function renderNowPlaying(track: Track) {
   np.classList.toggle('is-live', track.live === true);
+  const playlist = queuePlaylist ? findPlaylist(queuePlaylist.id) : null;
+  if (playlist) {
+    renderPlaylistNowPlaying(playlist, track);
+    return;
+  }
+  np.classList.remove('is-playlist');
+  npList.hidden = true;
+  npTracks.innerHTML = '';
+  npDetail.hidden = false;
   npArt.innerHTML = coverMarkup(track, 'lg');
   npAmbient.style.backgroundImage = track.artwork ? `url(${JSON.stringify(track.artwork)})` : 'none';
   npTitle.textContent = track.title;
@@ -873,6 +1013,7 @@ function renderNowPlaying(track: Track) {
   npDesc.hidden = !track.description;
   npLike.disabled = false;
   npShare.disabled = false;
+  npAdd.disabled = false;
   npLike.classList.toggle('liked', liked.has(track.id));
   npDetail.textContent = track.live ? 'More live stations in this country' : 'More from this artist';
   npProgress.hidden = track.live === true || !!track.videoId;
@@ -1072,9 +1213,14 @@ function openShare(track: Track) {
 
 /* ---------------- Player ---------------- */
 
-function playQueue(list: Track[], position: number) {
+// When a queue comes from a playlist the player labels itself with the
+// playlist name, which is more useful than the source while listening.
+let queuePlaylist: { id: string; name: string } | null = null;
+
+function playQueue(list: Track[], position: number, playlist?: { id: string; name: string }) {
   queue = list;
   index = position;
+  queuePlaylist = playlist ?? null;
   loadTrack(queue[index], true);
 }
 
@@ -1082,7 +1228,7 @@ function loadTrack(track: Track, autoplay: boolean) {
   current = track;
   paintHomeBackdrops();
   player.classList.remove('disabled');
-  nowTitle.textContent = track.title;
+  nowTitle.textContent = queuePlaylist?.name ?? track.title;
   nowArtist.textContent = track.artist;
   nowSrc.textContent = sourceMeta(track, true);
   nowArt.innerHTML = coverMarkup(track, 'md');
@@ -1564,15 +1710,92 @@ audio.addEventListener('ended', () => {
   }
 });
 
+// Jamendo stream URLs carry a short-lived token, so a track saved in a playlist
+// can fail to load long after it was added. Ask the API for that same track
+// again, swap in the fresh URL everywhere it is stored and carry on playing.
+const jamendoRetry = new Map<string, number>();
+let refreshingJamendo = false;
+
+function patchTrackSource(id: string, src: string): boolean {
+  let changed = false;
+  const apply = (candidate: Track | null | undefined) => {
+    if (candidate && candidate.id === id && candidate.src !== src) {
+      candidate.src = src;
+      changed = true;
+    }
+  };
+  apply(current);
+  queue.forEach(apply);
+  apply(liked.get(id));
+  history.forEach((entry) => apply(entry.track));
+  [...stats.values()].forEach((stat) => apply(stat.track));
+  playlists.forEach((playlist) => playlist.tracks.forEach(apply));
+  return changed;
+}
+
+async function refreshJamendoSource(track: Track): Promise<boolean> {
+  if (track.source !== 'jamendo' || refreshingJamendo) return false;
+  // One attempt per track per minute, so a dead track cannot loop forever.
+  const lastTry = jamendoRetry.get(track.id) ?? 0;
+  if (Date.now() - lastTry < 60_000) return false;
+  jamendoRetry.set(track.id, Date.now());
+  refreshingJamendo = true;
+  nowSrc.textContent = 'REFRESHING STREAM…';
+  try {
+    const fresh = await getTrackById(track.id);
+    if (!fresh || fresh.source !== 'jamendo' || !fresh.src) {
+      nowSrc.textContent = 'STREAM UNAVAILABLE';
+      return false;
+    }
+    if (patchTrackSource(track.id, fresh.src)) savePlaylists();
+    const resumeAt = audio.currentTime;
+    audio.src = fresh.src;
+    if (resumeAt > 0) {
+      audio.addEventListener(
+        'loadedmetadata',
+        () => {
+          try {
+            audio.currentTime = resumeAt;
+          } catch {
+            /* the track may be shorter than the old position */
+          }
+        },
+        { once: true }
+      );
+    }
+    await audio.play().catch(() => {
+      nowSrc.textContent = 'PLAYBACK FAILED · TRY ANOTHER SONG';
+    });
+    nowSrc.textContent = sourceMeta(track, true);
+    savePlayback(true);
+    return true;
+  } catch {
+    nowSrc.textContent = 'STREAM UNAVAILABLE';
+    return false;
+  } finally {
+    refreshingJamendo = false;
+  }
+}
+
 audio.addEventListener('error', () => {
+  const track = current;
+  if (track && track.source === 'jamendo' && audio.getAttribute('src')) {
+    void refreshJamendoSource(track);
+    return;
+  }
   nowSrc.textContent = 'STREAM UNAVAILABLE';
 });
 
 playBtn.addEventListener('click', togglePlay);
 detailPlay.addEventListener('click', togglePlay);
 nowOpen.addEventListener('click', (event) => {
-  // The cover opens the full-screen player; the title still opens the artist list.
+  // The cover opens the full-screen player. The title opens the artist list,
+  // except while a playlist is playing: then it opens that playlist's player.
   if ((event.target as HTMLElement).closest('.now-art')) {
+    openNowPlaying();
+    return;
+  }
+  if (queuePlaylist && findPlaylist(queuePlaylist.id)) {
     openNowPlaying();
     return;
   }
@@ -1771,7 +1994,17 @@ document.addEventListener('keydown', (event) => {
 
 /* ---------------- Views ---------------- */
 
-const views = ['home', 'search', 'videos', 'library', 'podcasts', 'radio', 'terms', 'about'] as const;
+const views = [
+  'home',
+  'search',
+  'videos',
+  'library',
+  'playlists',
+  'podcasts',
+  'radio',
+  'terms',
+  'about',
+] as const;
 type View = (typeof views)[number];
 
 let currentView: View = 'home';
@@ -1800,12 +2033,13 @@ function applySearchScope() {
   const radio = searchScope === 'all' || searchScope === 'radio';
   const videos = searchScope === 'all' || searchScope === 'video';
 
+  // Without a Jamendo client id the section would only ever show an empty
+  // state, so hide it and let Audius cover full tracks.
+  const jamendo = songs && hasJamendoKey();
   audiusHead.hidden = !songs;
-  deezerHead.hidden = !songs;
-  itunesHead.hidden = !songs;
+  jamendoHead.hidden = !jamendo;
   audiusResults.hidden = !songs;
-  deezerResults.hidden = !songs;
-  itunesResults.hidden = !songs;
+  jamendoResults.hidden = !jamendo;
   podcastHead.hidden = !podcasts;
   podcastResults.hidden = !podcasts;
   radioHead.hidden = !radio;
@@ -1828,7 +2062,7 @@ function applySearchScope() {
         ? 'Type at least 2 characters to search live radio stations.'
         : searchScope === 'video'
           ? 'Type at least 2 characters to search YouTube music videos.'
-          : 'Type at least 2 characters to search full tracks, Deezer and iTunes previews, podcast episodes, live radio and videos.';
+          : 'Type at least 2 characters to search full tracks from Audius and Jamendo, podcast episodes, live radio and videos.';
 }
 
 // On mobile the top bar shows the EchoX title plus a magnifier; the search
@@ -1853,7 +2087,9 @@ function setView(view: View, nav?: string) {
             ? 'Live radio | echoX'
             : view === 'videos'
               ? 'Videos | echoX'
-              : 'echoX — Free Music, Music Videos, Radio & Podcasts';
+              : view === 'playlists'
+                ? 'Playlists | echoX'
+                : 'echoX — Free Music, Music Videos, Radio & Podcasts';
   views.forEach((name) => {
     el<HTMLElement>(`view-${name}`).hidden = name !== view;
   });
@@ -1861,8 +2097,12 @@ function setView(view: View, nav?: string) {
   document.querySelectorAll<HTMLElement>('[data-nav]').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.nav === activeNav);
   });
+  // On phones the Library tab stands for both Liked and Playlists.
+  const libraryTab = document.querySelector<HTMLElement>('.nav-library-tab');
+  libraryTab?.classList.toggle('active', view === 'library' || view === 'playlists');
   if (view !== 'search') setSearchOpen(false);
   if (view === 'library') renderLibrary();
+  if (view === 'playlists') renderPlaylists();
   if (view === 'search') {
     searchHint.hidden = searchInput.value.trim().length >= 2;
     if (topbar.classList.contains('searching')) searchInput.focus();
@@ -1899,7 +2139,7 @@ function openSearchPage() {
           ? 'Search live radio'
           : 'Search results';
     searchHint.hidden = query.length >= 2;
-    [audiusResults, deezerResults, itunesResults, podcastResults, radioResults].forEach(
+    [audiusResults, jamendoResults, podcastResults, radioResults].forEach(
       (container) => (container.innerHTML = '')
     );
   }
@@ -1920,6 +2160,12 @@ document.querySelectorAll<HTMLElement>('[data-view]').forEach((btn) => {
     if (view === 'search') {
       openSearchPage();
     } else {
+      // The sidebar entry always lands on the playlist index, not the last
+      // playlist that happened to be open.
+      if (view === 'playlists') {
+        openPlaylistId = null;
+        resetPlaylistSearch();
+      }
       setView(view, btn.dataset.nav);
       if (view === 'podcasts') void loadPodcasts();
       if (view === 'radio') void loadRadio();
@@ -1992,9 +2238,12 @@ el<HTMLButtonElement>('about-close').addEventListener('click', closeAbout);
 
 let confirmResolve: ((ok: boolean) => void) | null = null;
 
-function askConfirm(): Promise<boolean> {
+function askConfirm(title: string, text: string, okLabel: string): Promise<boolean> {
   return new Promise((resolve) => {
     confirmResolve = resolve;
+    confirmTitle.textContent = title;
+    confirmText.textContent = text;
+    confirmOk.textContent = okLabel;
     if (typeof confirmDialog.showModal === 'function') confirmDialog.showModal();
     else confirmDialog.setAttribute('open', '');
     confirmCancel.focus();
@@ -2029,7 +2278,12 @@ homeClearHistory.addEventListener('click', async () => {
     resetLabel();
     return;
   }
-  if (!(await askConfirm())) return;
+  const confirmed = await askConfirm(
+    'Clear history?',
+    'This removes your play history and play counts from this device. Liked songs and playlists are kept.',
+    'Clear history'
+  );
+  if (!confirmed) return;
   history.length = 0;
   stats.clear();
   saveHistory();
@@ -2522,8 +2776,7 @@ async function runSearch(rawQuery: string) {
             : 'Search results';
     [
       audiusResults,
-      deezerResults,
-      itunesResults,
+      jamendoResults,
       podcastResults,
       radioResults,
       videoResults,
@@ -2549,17 +2802,16 @@ async function runSearch(rawQuery: string) {
   const wantRadio = searchScope === 'all' || searchScope === 'radio';
   const wantVideos = searchScope === 'all' || searchScope === 'video';
 
-  if (wantSongs) {
-    [audiusResults, deezerResults, itunesResults].forEach((container) => (container.innerHTML = skeletonGrid()));
-  }
+  const wantJamendo = wantSongs && hasJamendoKey();
+  if (wantSongs) audiusResults.innerHTML = skeletonGrid();
+  if (wantJamendo) jamendoResults.innerHTML = skeletonGrid();
   if (wantPodcasts) podcastResults.innerHTML = skeletonGrid();
   if (wantRadio) radioResults.innerHTML = skeletonGrid();
   if (wantVideos) videoResults.innerHTML = skeletonGrid(4);
 
-  const [audius, deezer, itunes, podcasts, radio, videos] = await Promise.allSettled([
+  const [audius, jamendo, podcasts, radio, videos] = await Promise.allSettled([
     wantSongs ? searchAudius(query) : Promise.resolve<Track[]>([]),
-    wantSongs ? searchDeezer(query) : Promise.resolve<Track[]>([]),
-    wantSongs ? searchItunes(query) : Promise.resolve<Track[]>([]),
+    wantJamendo ? searchJamendo(query, 12) : Promise.resolve<Track[]>([]),
     wantPodcasts ? searchPodcasts(query) : Promise.resolve<Track[]>([]),
     wantRadio ? searchRadio(query) : Promise.resolve<Track[]>([]),
     wantVideos
@@ -2571,8 +2823,14 @@ async function runSearch(rawQuery: string) {
 
   if (wantSongs) {
     renderResults(audius, audiusResults, 'No full tracks matched on Audius.', 'Audius search failed. Please try again.');
-    renderResults(deezer, deezerResults, 'No previews matched on Deezer.', 'Deezer search failed. Please try again.');
-    renderResults(itunes, itunesResults, 'No previews matched on iTunes.', 'iTunes search failed. Please try again.');
+    if (wantJamendo) {
+      renderResults(
+        jamendo,
+        jamendoResults,
+        'No full tracks matched on Jamendo.',
+        'Jamendo search failed. Please try again.'
+      );
+    }
   }
   if (wantPodcasts) {
     renderResults(podcasts, podcastResults, 'No podcast episodes matched.', 'Podcast search failed. Please try again.');
@@ -2681,8 +2939,387 @@ function renderLibrary() {
   likedGrid.innerHTML = '';
   if (tracks.length) renderGrid(likedGrid, tracks);
 
+  renderPlaylists();
   syncPlayingCards();
 }
+
+/* ---------------- Playlists ---------------- */
+
+const playlistsHeading = el<HTMLHeadingElement>('playlists-heading');
+const playlistsIndex = el<HTMLDivElement>('playlists-index');
+const playlistsStatus = el<HTMLDivElement>('playlists-status');
+const playlistsGrid = el<HTMLDivElement>('playlists-grid');
+const playlistDetail = el<HTMLDivElement>('playlist-detail');
+const playlistBack = el<HTMLButtonElement>('playlist-back');
+const playlistName = el<HTMLHeadingElement>('playlist-name');
+const playlistCount = el<HTMLSpanElement>('playlist-count');
+const playlistPlay = el<HTMLButtonElement>('playlist-play');
+const playlistDelete = el<HTMLButtonElement>('playlist-delete');
+const playlistEmpty = el<HTMLDivElement>('playlist-empty');
+const playlistTracks = el<HTMLDivElement>('playlist-tracks');
+const playlistNew = el<HTMLButtonElement>('playlist-new');
+const playlistSheet = el<HTMLDialogElement>('playlist-sheet');
+const playlistSheetTrack = el<HTMLParagraphElement>('playlist-sheet-track');
+const playlistPick = el<HTMLDivElement>('playlist-pick');
+const playlistSheetEmpty = el<HTMLParagraphElement>('playlist-sheet-empty');
+const playlistCreate = el<HTMLFormElement>('playlist-create');
+const playlistCreateName = el<HTMLInputElement>('playlist-create-name');
+const detailAdd = el<HTMLButtonElement>('detail-add');
+const npAdd = el<HTMLButtonElement>('np-add');
+const libraryPlaylists = el<HTMLDivElement>('library-playlists');
+const libraryPlaylistsStatus = el<HTMLDivElement>('library-playlists-status');
+const libraryPlaylistsAll = el<HTMLButtonElement>('library-playlists-all');
+const playlistSearch = el<HTMLInputElement>('playlist-search');
+const playlistSearchHint = el<HTMLParagraphElement>('playlist-search-hint');
+const playlistResults = el<HTMLDivElement>('playlist-results');
+
+const plusIcon =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
+const checkIcon =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7"/></svg>';
+const removeIcon =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg>';
+
+// Which playlist is opened inside the Playlists view, and the track the sheet
+// was opened for (null when the user is only creating a playlist).
+let openPlaylistId: string | null = null;
+let playlistSheetFor: Track | null = null;
+let playlistSearchHits: Track[] = [];
+let playlistSearchTimer: number | undefined;
+let playlistSearchSeq = 0;
+
+function findPlaylist(id: string | null): Playlist | null {
+  if (!id) return null;
+  return playlists.find((playlist) => playlist.id === id) ?? null;
+}
+
+function createPlaylist(name: string, track: Track | null): Playlist | null {
+  const clean = name.trim().replace(/\s+/g, ' ').slice(0, 60);
+  if (!clean || playlists.length >= PLAYLISTS_MAX) return null;
+  const playlist: Playlist = {
+    id: `pl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+    name: clean,
+    createdAt: Date.now(),
+    tracks: track ? [track] : [],
+  };
+  playlists.unshift(playlist);
+  savePlaylists();
+  renderPlaylists();
+  return playlist;
+}
+
+/** Adds the track, or takes it out when it is already in the playlist. */
+function togglePlaylistTrack(playlist: Playlist, track: Track): boolean {
+  const at = playlist.tracks.findIndex((item) => item.id === track.id);
+  if (at >= 0) {
+    playlist.tracks.splice(at, 1);
+  } else {
+    if (playlist.tracks.length >= PLAYLIST_TRACKS_MAX) return false;
+    playlist.tracks.push(track);
+  }
+  savePlaylists();
+  renderPlaylists();
+  return at < 0;
+}
+
+function makePlaylistCard(playlist: Playlist): HTMLButtonElement {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'card playlist-card';
+  const first: Track | undefined = playlist.tracks[0];
+  const count = playlist.tracks.length;
+  card.innerHTML = `
+    <div class="card-art playlist-art">
+      ${playlistCover(playlist, 'md')}
+      <span class="badge-src playlist-badge">${count} ${count === 1 ? 'track' : 'tracks'}</span>
+    </div>
+    <div class="card-title">${escapeHtml(playlist.name)}</div>
+    <div class="card-artist">${first ? escapeHtml(first.artist) : 'Empty playlist'}</div>
+  `;
+  card.addEventListener('click', () => {
+    openPlaylistId = playlist.id;
+    resetPlaylistSearch();
+    if (currentView !== 'playlists') setView('playlists', 'playlists');
+    else renderPlaylists();
+    window.scrollTo({ top: 0 });
+  });
+  return card;
+}
+
+function makePlaylistRow(playlist: Playlist, track: Track, position: number): HTMLElement {
+  const item = document.createElement('div');
+  item.className = 'playlist-item';
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'row';
+  row.dataset.trackId = track.id;
+  row.classList.toggle('playing', track.id === current?.id);
+  row.innerHTML = `
+    <span class="row-index">${position + 1}</span>
+    <span class="row-art">${coverMarkup(track, 'sm')}</span>
+    <span class="row-info">
+      <span class="row-title">${escapeHtml(track.title)}</span>
+      <span class="row-artist">${escapeHtml(track.artist)}</span>
+    </span>
+    <span class="row-dur">${track.live ? 'LIVE' : formatTime(track.duration)}</span>
+    <span class="row-play">${playIcon}</span>
+  `;
+  row.addEventListener('click', () => {
+    playQueue(playlist.tracks.slice(), position, { id: playlist.id, name: playlist.name });
+    if (track.live) closeDetail();
+    else void openDetail(track);
+  });
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'playlist-row-remove';
+  remove.title = 'Remove from playlist';
+  remove.setAttribute('aria-label', `Remove ${track.title} from ${playlist.name}`);
+  remove.innerHTML = removeIcon;
+  remove.addEventListener('click', () => {
+    togglePlaylistTrack(playlist, track);
+  });
+  item.append(row, remove);
+  return item;
+}
+
+function renderPlaylists() {
+  // The Library view groups the same cards under Liked songs.
+  libraryPlaylistsStatus.hidden = playlists.length > 0;
+  libraryPlaylists.innerHTML = '';
+  if (playlists.length) {
+    const libraryGrid = document.createElement('div');
+    libraryGrid.className = 'grid';
+    playlists.slice(0, 8).forEach((playlist) => libraryGrid.append(makePlaylistCard(playlist)));
+    libraryPlaylists.append(libraryGrid);
+  }
+
+  playlistsStatus.hidden = playlists.length > 0;
+  playlistsGrid.innerHTML = '';
+  if (playlists.length) {
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    playlists.forEach((playlist) => grid.append(makePlaylistCard(playlist)));
+    playlistsGrid.append(grid);
+  }
+
+  const open = findPlaylist(openPlaylistId);
+  if (!open) openPlaylistId = null;
+  playlistDetail.hidden = !open;
+  playlistsIndex.hidden = !!open;
+  // The page title only belongs to the index; an open playlist names itself.
+  playlistsHeading.hidden = !!open;
+  if (!open) return;
+
+  playlistName.textContent = open.name;
+  playlistCount.textContent = `${open.tracks.length} ${open.tracks.length === 1 ? 'track' : 'tracks'}`;
+  const searching = playlistSearchHits.length > 0;
+  playlistEmpty.hidden = searching || open.tracks.length > 0;
+  playlistPlay.disabled = open.tracks.length === 0;
+  playlistTracks.innerHTML = '';
+  playlistTracks.hidden = searching;
+  open.tracks.forEach((track, i) => playlistTracks.append(makePlaylistRow(open, track, i)));
+  syncPlayingCards();
+}
+
+playlistBack.addEventListener('click', () => {
+  openPlaylistId = null;
+  resetPlaylistSearch();
+  renderPlaylists();
+  window.scrollTo({ top: 0 });
+});
+
+libraryPlaylistsAll.addEventListener('click', () => {
+  openPlaylistId = null;
+  setView('playlists', 'playlists');
+  window.scrollTo({ top: 0 });
+});
+
+playlistPlay.addEventListener('click', () => {
+  const playlist = findPlaylist(openPlaylistId);
+  if (!playlist || !playlist.tracks.length) return;
+  playQueue(playlist.tracks.slice(), 0, { id: playlist.id, name: playlist.name });
+});
+
+playlistDelete.addEventListener('click', async () => {
+  const playlist = findPlaylist(openPlaylistId);
+  if (!playlist) return;
+  const confirmed = await askConfirm(
+    'Delete playlist?',
+    `“${playlist.name}” will be removed from this device. The tracks in it stay available everywhere else.`,
+    'Delete playlist'
+  );
+  if (!confirmed) return;
+  const at = playlists.indexOf(playlist);
+  if (at >= 0) playlists.splice(at, 1);
+  openPlaylistId = null;
+  savePlaylists();
+  renderPlaylists();
+});
+
+function openPlaylistSheet(track: Track | null) {
+  playlistSheetFor = track;
+  playlistSheetTrack.hidden = !track;
+  playlistSheetTrack.textContent = track ? `${track.title} — ${track.artist}` : '';
+  renderPlaylistPicker();
+  playlistCreateName.value = '';
+  if (typeof playlistSheet.showModal === 'function') playlistSheet.showModal();
+  else playlistSheet.setAttribute('open', '');
+  // Only pull up the keyboard when the sheet is opened just to name a playlist.
+  if (!track) window.setTimeout(() => playlistCreateName.focus(), 40);
+}
+
+function closePlaylistSheet() {
+  if (playlistSheet.open) playlistSheet.close();
+  else playlistSheet.removeAttribute('open');
+}
+
+function renderPlaylistPicker() {
+  const track = playlistSheetFor;
+  playlistPick.innerHTML = '';
+  playlistPick.hidden = !track;
+  playlistSheetEmpty.hidden = !track || playlists.length > 0;
+  if (!track) return;
+  playlists.forEach((playlist) => {
+    const inside = playlist.tracks.some((item) => item.id === track.id);
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'playlist-pick-row';
+    row.classList.toggle('is-in', inside);
+    row.setAttribute('aria-pressed', String(inside));
+    row.innerHTML = `
+      <span class="playlist-pick-name">${escapeHtml(playlist.name)}</span>
+      <span class="playlist-pick-count">${playlist.tracks.length}</span>
+      <span class="playlist-pick-icon">${inside ? checkIcon : plusIcon}</span>
+    `;
+    row.addEventListener('click', () => {
+      togglePlaylistTrack(playlist, track);
+      renderPlaylistPicker();
+    });
+    playlistPick.append(row);
+  });
+}
+
+function resetPlaylistSearch() {
+  window.clearTimeout(playlistSearchTimer);
+  playlistSearchSeq += 1;
+  playlistSearch.value = '';
+  playlistSearchHits = [];
+  playlistResults.innerHTML = '';
+  playlistResults.hidden = true;
+  playlistTracks.hidden = false;
+  playlistSearchHint.hidden = false;
+  playlistSearchHint.textContent =
+    'Type at least 2 characters, then tap a result to add it to this playlist.';
+}
+
+function renderPlaylistResults(playlist: Playlist) {
+  playlistResults.innerHTML = '';
+  const showing = playlistSearchHits.length > 0;
+  playlistResults.hidden = !showing;
+  // While results are on screen they replace the track list, so the two lists
+  // never compete for the same scroll area.
+  playlistTracks.hidden = showing;
+  playlistEmpty.hidden = showing || playlist.tracks.length > 0;
+  playlistSearchHits.forEach((track) => {
+    const inside = playlist.tracks.some((item) => item.id === track.id);
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'playlist-result';
+    row.classList.toggle('is-in', inside);
+    row.innerHTML = `
+      <span class="playlist-result-art">${coverMarkup(track, 'sm')}</span>
+      <span class="playlist-result-info">
+        <span class="playlist-result-title">${escapeHtml(track.title)}</span>
+        <span class="playlist-result-artist">${escapeHtml(track.artist)}</span>
+      </span>
+      <span class="playlist-result-action">${inside ? checkIcon : plusIcon}</span>
+    `;
+    row.addEventListener('click', () => {
+      const playlistNow = findPlaylist(openPlaylistId);
+      if (!playlistNow) return;
+      togglePlaylistTrack(playlistNow, track);
+      renderPlaylistResults(playlistNow);
+    });
+    playlistResults.append(row);
+  });
+}
+
+// Search full tracks and podcasts without leaving the playlist card.
+async function runPlaylistSearch(rawQuery: string) {
+  const query = rawQuery.trim();
+  const seq = ++playlistSearchSeq;
+  if (!findPlaylist(openPlaylistId)) return;
+  if (query.length < 2) {
+    playlistSearchHits = [];
+    playlistResults.innerHTML = '';
+    playlistResults.hidden = true;
+    playlistTracks.hidden = false;
+    const playlist = findPlaylist(openPlaylistId);
+    if (playlist) playlistEmpty.hidden = playlist.tracks.length > 0;
+    playlistSearchHint.hidden = false;
+    playlistSearchHint.textContent =
+      'Type at least 2 characters, then tap a result to add it to this playlist.';
+    return;
+  }
+  playlistSearchHint.hidden = false;
+  playlistSearchHint.textContent = `Searching for “${query}”…`;
+  const results = await Promise.allSettled([
+    searchAudius(query, 8),
+    hasJamendoKey() ? searchJamendo(query, 8) : Promise.resolve<Track[]>([]),
+    searchPodcasts(query, 6),
+  ]);
+  if (seq !== playlistSearchSeq) return;
+  const playlist = findPlaylist(openPlaylistId);
+  if (!playlist) return;
+  const hits: Track[] = [];
+  const seen = new Set<string>();
+  results.forEach((result) => {
+    if (result.status !== 'fulfilled') return;
+    result.value.forEach((track) => {
+      if (seen.has(track.id)) return;
+      seen.add(track.id);
+      hits.push(track);
+    });
+  });
+  playlistSearchHits = hits.slice(0, 24);
+  playlistSearchHint.hidden = playlistSearchHits.length > 0;
+  if (!playlistSearchHits.length) playlistSearchHint.textContent = 'Nothing matched. Try another word.';
+  renderPlaylistResults(playlist);
+}
+
+playlistSearch.addEventListener('input', () => {
+  window.clearTimeout(playlistSearchTimer);
+  const value = playlistSearch.value;
+  playlistSearchTimer = window.setTimeout(() => void runPlaylistSearch(value), 450);
+});
+
+playlistCreate.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const track = playlistSheetFor;
+  const created = createPlaylist(playlistCreateName.value, track);
+  if (!created) {
+    playlistCreateName.focus();
+    return;
+  }
+  playlistCreateName.value = '';
+  if (track) {
+    renderPlaylistPicker();
+    return;
+  }
+  // Creating from the Playlists view: open the new, empty playlist right away.
+  closePlaylistSheet();
+  openPlaylistId = created.id;
+  setView('playlists', 'playlists');
+  window.scrollTo({ top: 0 });
+});
+
+playlistNew.addEventListener('click', () => openPlaylistSheet(null));
+detailAdd.addEventListener('click', () => {
+  if (current) openPlaylistSheet(current);
+});
+npAdd.addEventListener('click', () => {
+  if (current) openPlaylistSheet(current);
+});
 
 /* ---------------- Init ---------------- */
 

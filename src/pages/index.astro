@@ -64,6 +64,21 @@ import TermsArticle from '../components/TermsArticle.astro';
           </svg>
           <span class="nav-label">Liked</span>
         </button>
+        <button type="button" class="nav-item nav-playlists" data-view="playlists" data-nav="playlists">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7h10" /><path d="M4 12h10" /><path d="M4 17h6" /><circle cx="17.5" cy="16" r="3" /><path d="M20.5 16V8.5l-3 1" />
+          </svg>
+          <span class="nav-label">Playlists</span>
+        </button>
+
+        <!-- On phones the bottom bar keeps one Library tab that holds Liked
+             and Playlists; it sits at the far right. -->
+        <button type="button" class="nav-item nav-library-tab" id="library-tab" data-view="library">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="7.5" height="16" rx="2" /><rect x="13.5" y="4" width="7.5" height="16" rx="2" />
+          </svg>
+          <span class="nav-label">Library</span>
+        </button>
 
         <button
           type="button"
@@ -94,14 +109,13 @@ import TermsArticle from '../components/TermsArticle.astro';
       <div class="sidebar-section">
         <h3>Audio sources</h3>
         <p>
-          Full tracks from <strong>Audius</strong>, previews from <strong>Deezer</strong> and
-          <strong>iTunes</strong>, podcasts, live radio and <strong>YouTube</strong> music
-          videos. No music files are hosted here.
+          Full tracks from <strong>Audius</strong> and <strong>Jamendo</strong>, podcasts, live
+          radio and <strong>YouTube</strong> music videos. No music files are hosted here.
         </p>
       </div>
 
       <footer class="sidebar-foot">
-        Audio, video &amp; data: Audius, Deezer, Apple, Radio Browser, YouTube.<br />
+        Audio, video &amp; data: Audius, Jamendo, Apple, Radio Browser, YouTube.<br />
         <a href="/terms" data-open-terms>Terms &amp; conditions</a>
       </footer>
     </aside>
@@ -184,6 +198,11 @@ import TermsArticle from '../components/TermsArticle.astro';
                     <path transform="translate(0 -0.6)" d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 7a4 4 0 0 1 7 3.8C19 15.6 12 20 12 20Z" />
                   </svg>
                 </button>
+                <button class="icon-btn" id="detail-add" type="button" aria-label="Add to playlist" title="Add to playlist">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 7h9" /><path d="M4 12h9" /><path d="M4 17h5" /><path d="M17 10v7" /><path d="M13.5 13.5h7" />
+                  </svg>
+                </button>
                 <button class="icon-btn" id="detail-share" type="button" aria-label="Share song">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="18" cy="5.5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="18.5" r="2.5" />
@@ -222,8 +241,8 @@ import TermsArticle from '../components/TermsArticle.astro';
           <p class="eyebrow">Free · legal · no subscription</p>
           <h1>Free Music, Video, Radio<br />and Podcast Stream,<br />only for fun!</h1>
           <p class="sub">
-            Full tracks from Audius, previews from Deezer and iTunes, podcasts, live radio
-            and music videos from YouTube. Everything plays straight from its official source.
+            Full tracks from Audius and Jamendo, podcasts, live radio and music videos from
+            YouTube. Everything plays straight from its official source.
           </p>
           <p class="hero-note">
             A free hobby project — no guarantees, just for fun.
@@ -279,8 +298,8 @@ import TermsArticle from '../components/TermsArticle.astro';
       <section id="view-search" class="view" hidden>
         <h2 id="search-heading">Search results</h2>
         <p class="search-hint" id="search-hint">
-          Type at least 2 characters to search full tracks, Deezer and iTunes previews,
-          podcast episodes and live radio.
+          Type at least 2 characters to search full tracks from Audius and Jamendo, podcast
+          episodes, live radio and videos.
         </p>
 
         <div class="section-head" id="audius-head">
@@ -289,17 +308,11 @@ import TermsArticle from '../components/TermsArticle.astro';
         </div>
         <div id="audius-results"></div>
 
-        <div class="section-head" id="deezer-head">
-          <h2>30-second previews · Deezer</h2>
-          <span>Deezer</span>
+        <div class="section-head" id="jamendo-head">
+          <h2>Full tracks · Jamendo</h2>
+          <span>Jamendo</span>
         </div>
-        <div id="deezer-results"></div>
-
-        <div class="section-head" id="itunes-head">
-          <h2>30-second previews · iTunes</h2>
-          <span>Apple Music</span>
-        </div>
-        <div id="itunes-results"></div>
+        <div id="jamendo-results"></div>
 
         <div class="section-head" id="podcast-head">
           <h2>Podcast episodes</h2>
@@ -343,6 +356,17 @@ import TermsArticle from '../components/TermsArticle.astro';
       <section id="view-library" class="view" hidden>
         <h2>Your library</h2>
 
+        <div class="section-head">
+          <h2>Playlists</h2>
+          <button class="section-link" id="library-playlists-all" type="button">View all</button>
+        </div>
+        <div id="library-playlists-status">
+          <div class="status">
+            No playlists yet. Use “Add to playlist” while a song, podcast or video is open.
+          </div>
+        </div>
+        <div id="library-playlists"></div>
+
         <div class="section-head" id="play-again-head">
           <h2>Play again</h2>
           <span>recent</span>
@@ -369,6 +393,66 @@ import TermsArticle from '../components/TermsArticle.astro';
           <div class="status">No liked songs yet. Tap the heart while a song is playing.</div>
         </div>
         <div id="liked-grid"></div>
+      </section>
+
+      <section id="view-playlists" class="view" hidden>
+        <h2 id="playlists-heading">Your playlists</h2>
+
+        <div id="playlists-index">
+          <div class="playlists-toolbar">
+            <p class="search-hint">
+              Saved in this browser on this device only — songs, podcasts, radio and videos can
+              share one playlist. Nothing is uploaded.
+            </p>
+            <button class="playlist-new" id="playlist-new" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="M12 5v14" /><path d="M5 12h14" />
+              </svg>
+              New playlist
+            </button>
+          </div>
+          <div id="playlists-status">
+            <div class="status">
+              No playlists yet. Open a song, podcast or video and use “Add to playlist”.
+            </div>
+          </div>
+          <div id="playlists-grid"></div>
+        </div>
+
+        <div id="playlist-detail" hidden>
+          <button class="text-back" id="playlist-back" type="button">← All playlists</button>
+          <div class="section-head">
+            <h2 id="playlist-name">—</h2>
+            <span id="playlist-count"></span>
+          </div>
+          <div class="playlist-actions">
+            <button class="playlist-play" id="playlist-play" type="button">Play all</button>
+            <button class="playlist-delete" id="playlist-delete" type="button">Delete playlist</button>
+          </div>
+          <div class="playlist-find">
+            <label class="playlist-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" />
+              </svg>
+              <input
+                id="playlist-search"
+                type="search"
+                placeholder="Search songs or podcasts to add…"
+                autocomplete="off"
+                aria-label="Search to add to this playlist"
+              />
+            </label>
+            <p class="playlist-search-hint" id="playlist-search-hint">
+              Type at least 2 characters, then tap a result to add it to this playlist.
+            </p>
+            <div class="playlist-results" id="playlist-results"></div>
+          </div>
+
+          <div class="status" id="playlist-empty" hidden>
+            This playlist is empty. Add tracks with “Add to playlist” or the search above.
+          </div>
+          <div class="tracklist" id="playlist-tracks"></div>
+        </div>
       </section>
 
       <section id="view-podcasts" class="view" hidden>
@@ -471,6 +555,31 @@ import TermsArticle from '../components/TermsArticle.astro';
     </div>
   </div>
 
+  <dialog class="share playlist-sheet" id="playlist-sheet" aria-labelledby="playlist-sheet-title">
+    <form method="dialog" class="share-head">
+      <h2 id="playlist-sheet-title">Add to playlist</h2>
+      <button class="share-x" type="submit" aria-label="Close playlists">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6 18 18M18 6 6 18" />
+        </svg>
+      </button>
+    </form>
+    <p class="playlist-sheet-track" id="playlist-sheet-track">—</p>
+    <div class="playlist-pick" id="playlist-pick"></div>
+    <p class="playlist-sheet-empty" id="playlist-sheet-empty" hidden>No playlists yet. Create one below.</p>
+    <form class="playlist-create" id="playlist-create">
+      <input
+        id="playlist-create-name"
+        type="text"
+        maxlength="60"
+        placeholder="New playlist name"
+        autocomplete="off"
+        aria-label="New playlist name"
+      />
+      <button type="submit">Create</button>
+    </form>
+  </dialog>
+
   <dialog class="share" id="share-dialog" aria-labelledby="share-title">
     <form method="dialog" class="share-head">
       <h2 id="share-title">Share</h2>
@@ -499,7 +608,7 @@ import TermsArticle from '../components/TermsArticle.astro';
         loading="lazy"
         allow="autoplay; encrypted-media"
       ></iframe>
-      <p class="share-note">echoX — free music, radio and podcasts. Stream full tracks, previews, episodes and live stations.</p>
+      <p class="share-note">echoX — free music, radio and podcasts. Stream full tracks, episodes and live stations.</p>
     </div>
 
     <div class="share-field">
@@ -530,7 +639,7 @@ import TermsArticle from '../components/TermsArticle.astro';
         </svg>
       </button>
     </form>
-    <p class="confirm-text">
+    <p class="confirm-text" id="confirm-text">
       This removes your play history and play counts from this device. Liked songs are kept.
     </p>
     <div class="confirm-actions">
@@ -552,6 +661,11 @@ import TermsArticle from '../components/TermsArticle.astro';
         <button class="icon-btn" id="np-like" type="button" aria-label="Like song" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
             <path transform="translate(0 -0.6)" d="M12 20s-7-4.4-7-9.2A4 4 0 0 1 12 7a4 4 0 0 1 7 3.8C19 15.6 12 20 12 20Z" />
+          </svg>
+        </button>
+        <button class="icon-btn" id="np-add" type="button" aria-label="Add to playlist" title="Add to playlist" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7h9" /><path d="M4 12h9" /><path d="M4 17h5" /><path d="M17 10v7" /><path d="M13.5 13.5h7" />
           </svg>
         </button>
         <button class="icon-btn" id="np-share" type="button" aria-label="Share song" disabled>
@@ -613,6 +727,11 @@ import TermsArticle from '../components/TermsArticle.astro';
             <button class="np-detail" id="np-detail" type="button">More from this artist</button>
             <a class="np-link" id="np-link" target="_blank" rel="noreferrer noopener" hidden>Open source</a>
           </div>
+
+          <section class="np-list" id="np-list" hidden>
+            <h3 id="np-list-title">In this playlist</h3>
+            <div class="tracklist" id="np-tracks"></div>
+          </section>
 
           <section class="np-facts" id="np-facts" hidden>
             <h3 id="np-facts-title">Track details</h3>

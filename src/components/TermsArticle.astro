@@ -13,10 +13,9 @@
 
 <h2>1. What EchoX is</h2>
 <p>
-  EchoX is a free, browser-based music and video player. It streams full tracks from Audius,
-  30-second previews from Deezer and Apple's iTunes Search API, podcast episodes from Apple
-  Podcasts, live radio from Radio Browser and music videos from YouTube through YouTube's
-  embedded player. EchoX does not host, upload, store or redistribute any music or video files;
+  EchoX is a free, browser-based music and video player. It streams full tracks from Audius and
+  Jamendo, podcast episodes from Apple Podcasts, live radio from Radio Browser and music videos
+  from YouTube through YouTube's embedded player. EchoX does not host, upload, store or redistribute any music or video files;
   playback happens directly from those third-party services.
 </p>
 
@@ -47,8 +46,8 @@
 
 <h2>5. Third-party services</h2>
 <p>
-  Playback and metadata depend on Audius, Apple (iTunes and Podcasts), Deezer, Radio Browser and
-  YouTube (Google). EchoX is not affiliated with, sponsored by or endorsed by any of them. Your
+  Playback and metadata depend on Audius, Jamendo, Apple (Podcasts), Radio Browser and YouTube
+  (Google). EchoX is not affiliated with, sponsored by or endorsed by any of them. Your
   use of those services is also governed by their own terms and privacy policies. In particular,
   the embedded YouTube player is provided by Google and may set cookies or collect usage data
   under Google's terms and privacy policy.
@@ -97,21 +96,13 @@
     <code>app_name=echox</code>. Free tier: 10 requests/second and 500,000 requests/month.
   </li>
   <li>
-    <strong>Apple iTunes Search API</strong> —
-    <a href="https://itunes.apple.com/search" target="_blank" rel="noopener noreferrer">itunes.apple.com/search</a>
-    and
-    <a href="https://itunes.apple.com/lookup" target="_blank" rel="noopener noreferrer">itunes.apple.com/lookup</a><br />
-    Used for: 30-second preview clips (<code>previewUrl</code>), artwork
-    (<code>artworkUrl100</code>), track metadata and artist track listings. No key required;
-    the endpoint is public and rate-limited.
-  </li>
-  <li>
-    <strong>Deezer public API</strong> —
-    <a href="https://api.deezer.com/search" target="_blank" rel="noopener noreferrer">api.deezer.com/search</a><br />
-    Used for: a second world-wide catalogue of 30-second preview clips
-    (<code>preview</code>), artwork and artist top tracks
-    (<code>/artist/&#123;id&#125;/top</code>). No key required. Deezer does not send CORS
-    headers, so the app reads this API through JSONP.
+    <strong>Jamendo API v3.0</strong> —
+    <a href="https://api.jamendo.com/v3.0" target="_blank" rel="noopener noreferrer">api.jamendo.com/v3.0</a><br />
+    Used for: full-length Creative Commons tracks (<code>/tracks</code> search and popularity
+    lists), artist catalogues (<code>/artists/tracks</code>), artwork and streaming audio
+    (<code>audio</code>). Requests send the app's public <code>client_id</code>, which is an
+    identifier rather than a user secret; the client secret stays private and is never used in
+    the browser.
   </li>
   <li>
     <strong>Apple Podcasts (iTunes Search API)</strong> —
@@ -154,17 +145,16 @@
   No Spotify or Apple Music account API is used, and YouTube is only accessed through its
   public Data API and embedded player — never through a user account. No music or video files
   are downloaded by EchoX, and no personal credentials are stored by the site. The YouTube API
-  key is a public, site-restricted key that ships with the page; it is not a user secret. Deezer
-  previews, podcast episodes and YouTube videos are streamed exactly as their services provide
-  them; live radio is played straight from the broadcaster's stream.
+  key and the Jamendo <code>client_id</code> are public identifiers that ship with the page; they
+  are not user secrets. Jamendo tracks, podcast episodes and YouTube videos are streamed exactly
+  as their services provide them; live radio is played straight from the broadcaster's stream.
 </p>
 
 <h2>11. Thank you</h2>
 <p>
   Thank you to <strong>Audius</strong> for keeping an open, artist-first catalogue and a free
-  API; to <strong>Apple</strong> for the iTunes Search and Podcasts APIs; to
-  <strong>Deezer</strong> for a second global catalogue of previews; to <strong>Radio
-  Browser</strong> and every broadcaster who streams openly; to <strong>YouTube</strong> and
+  API; to <strong>Jamendo</strong> for a free catalogue of full-length Creative Commons music; to
+  <strong>Apple</strong> for the Podcasts API; to <strong>Radio Browser</strong> and every broadcaster who streams openly; to <strong>YouTube</strong> and
   every creator who allows their videos to be embedded; to every independent artist who
   uploads music and lets people listen for free; and to the open-source community behind
   <strong>Astro</strong>.

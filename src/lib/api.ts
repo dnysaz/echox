@@ -2,8 +2,22 @@ export const APP_NAME = 'echox';
 const AUDIUS = 'https://api.audius.co/v1';
 const YOUTUBE_API_KEY = import.meta.env.PUBLIC_YOUTUBE_API_KEY;
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
+// Jamendo only needs its public client id for read methods; the client secret
+// must never ship in the bundle and is not used here.
+const JAMENDO_CLIENT_ID = import.meta.env.PUBLIC_JAMENDO_CLIENT_ID as string | undefined;
+const JAMENDO = 'https://api.jamendo.com/v3.0';
+const JAMENDO_AUDIO_FORMAT = 'mp32';
 
-export type Source = 'audius' | 'deezer' | 'itunes' | 'podcast' | 'radio' | 'youtubeVideo';
+// `deezer` and `itunes` are legacy preview sources: they are no longer searched
+// or fetched, but tracks saved before the switch must keep loading and playing.
+export type Source =
+  | 'audius'
+  | 'jamendo'
+  | 'deezer'
+  | 'itunes'
+  | 'podcast'
+  | 'radio'
+  | 'youtubeVideo';
 
 export type YouTubeVideo = {
   id: string;
@@ -37,7 +51,7 @@ export type Track = {
   /** Everything else the source API knows about this item. */
   info?: InfoItem[];
   artistHandle?: string;
-  artistId?: number;
+  artistId?: number | string;
   permalink?: string;
   live?: boolean;
   country?: string;
@@ -106,6 +120,22 @@ type ItunesPodcast = {
   trackTimeMillis?: number;
   previewUrl?: string;
   trackViewUrl?: string;
+};
+
+type JamendoTrack = {
+  id?: string;
+  name?: string;
+  duration?: number;
+  artist_id?: string;
+  artist_name?: string;
+  album_name?: string;
+  album_image?: string;
+  image?: string;
+  audio?: string;
+  audiodownload?: string;
+  shareurl?: string;
+  releasedate?: string;
+  license_ccurl?: string;
 };
 
 type DeezerTrack = {
@@ -228,6 +258,33 @@ function fromAudius(t: AudiusTrack): Track | null {
     ),
     artistHandle: t.user?.handle,
     permalink: t.permalink,
+  };
+}
+
+function fromJamendo(t: JamendoTrack): Track | null {
+  if (!t.id || !t.name || !t.audio) return null;
+  const artwork = (t.image || t.album_image || '').replace(/width=\d+/, 'width=400');
+  return {
+    id: `jamendo:${t.id}`,
+    title: t.name.trim(),
+    artist: t.artist_name?.trim() || 'Jamendo artist',
+    artwork,
+    duration: t.duration ?? 0,
+    src: t.audio,
+    source: 'jamendo',
+    album: t.album_name,
+    link: t.shareurl || `https://www.jamendo.com/track/${t.id}`,
+    linkLabel: 'Open on Jamendo',
+    info: collect(
+      field('Album', t.album_name),
+      field('Artist', t.artist_name),
+      field('Released', isoDate(t.releasedate)),
+      field('Playback', 'Streamed in full from Jamendo'),
+      field('License', t.license_ccurl ? t.license_ccurl.split('/licenses/')[1] : undefined),
+      field('Jamendo ID', t.id)
+    ),
+    artistId: t.artist_id,
+    permalink: t.shareurl,
   };
 }
 
@@ -386,18 +443,45 @@ export async function searchAudius(query: string, limit = 15): Promise<Track[]> 
   return (data?.data ?? []).map(fromAudius).filter((t): t is Track => t !== null);
 }
 
-export async function searchItunes(query: string, limit = 8): Promise<Track[]> {
-  const data = await getJson<{ results?: ItunesTrack[] }>(
-    `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=${limit}`
-  );
-  return (data?.results ?? []).map(fromItunes).filter((t): t is Track => t !== null);
+// Jamendo's cache occasionally answers an otherwise valid query with an empty
+// list (it happens on burst throttling too); retry once before believing it.
+async function jamendoRetry(read: () => Promise<Track[]>, attempts = 2): Promise<Track[]> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+    const hits = await read();
+    if (hits.length) return hits;
+  }
+  return [];
 }
 
-export async function searchDeezer(query: string, limit = 12): Promise<Track[]> {
-  const data = await getJsonp<DeezerList>(
-    `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=${limit}`
+function jamendoTracks(url: string): Promise<Track[]> {
+  return getJson<{ results?: JamendoTrack[] } | null>(url).then((data) =>
+    (data?.results ?? []).map(fromJamendo).filter((t): t is Track => t !== null)
   );
-  return (data.data ?? []).map(fromDeezer).filter((t): t is Track => t !== null);
+}
+
+async function fetchJamendo(params: Record<string, string | number>): Promise<JamendoTrack[]> {
+  if (!JAMENDO_CLIENT_ID) return [];
+  const query = new URLSearchParams({
+    client_id: JAMENDO_CLIENT_ID,
+    format: 'json',
+    audioformat: JAMENDO_AUDIO_FORMAT,
+    include: 'licenses',
+    ...Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)])),
+  });
+  const url = `${JAMENDO}/tracks/?${query.toString()}`;
+  const first = await jamendoRetry(() => jamendoTracks(url));
+  return first;
+}
+
+export async function searchJamendo(query: string, limit = 12): Promise<Track[]> {
+  const term = query.trim();
+  if (!term) return [];
+  return fetchJamendo({ search: term, limit, order: 'relevance' });
+}
+
+export function hasJamendoKey(): boolean {
+  return typeof JAMENDO_CLIENT_ID === 'string' && JAMENDO_CLIENT_ID.trim().length > 0;
 }
 
 // Apple's podcast catalogue is region-scoped. Asking for the Indonesian store
@@ -536,6 +620,13 @@ export async function getArtistTracks(track: Track, limit = 40): Promise<Track[]
     return (data?.results ?? []).map(fromItunes).filter((t): t is Track => t !== null);
   }
 
+  if (track.source === 'jamendo' && track.artistId) {
+    const url = `${JAMENDO}/artists/tracks/?client_id=${JAMENDO_CLIENT_ID}&format=json&id=${encodeURIComponent(
+      String(track.artistId)
+    )}&limit=${limit}&audioformat=${JAMENDO_AUDIO_FORMAT}`;
+    return jamendoRetry(() => jamendoTracks(url));
+  }
+
   if (track.source === 'podcast' && track.artistId) {
     const data = await getJson<{ results?: ItunesPodcast[] }>(
       `https://itunes.apple.com/lookup?id=${track.artistId}&entity=podcastEpisode&limit=${limit}`
@@ -626,6 +717,14 @@ export async function getTrackById(trackId: string): Promise<Track | null> {
         `${AUDIUS}/tracks/${encodeURIComponent(rawId)}?app_name=${APP_NAME}`
       );
       return data?.data ? fromAudius(data.data) : null;
+    }
+
+    if (source === 'jamendo' && JAMENDO_CLIENT_ID) {
+      const url = `${JAMENDO}/tracks/?client_id=${JAMENDO_CLIENT_ID}&format=json&id=${encodeURIComponent(
+        rawId
+      )}&audioformat=${JAMENDO_AUDIO_FORMAT}&include=licenses`;
+      const hits = await jamendoRetry(() => jamendoTracks(url), 4);
+      return hits[0] ?? null;
     }
 
     if (source === 'deezer') {

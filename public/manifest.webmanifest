@@ -2,7 +2,7 @@
   "id": "/",
   "name": "echoX — Free music, radio and podcasts",
   "short_name": "echoX",
-  "description": "Free music, live radio and podcasts. Full tracks from Audius, previews from Deezer and iTunes, straight from the official sources.",
+  "description": "Free music, live radio and podcasts. Full tracks from Audius and Jamendo, straight from the official sources.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "/",

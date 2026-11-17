@@ -1,6 +1,6 @@
 # echoX
 
-**Free online music.** A small Spotify-style web player built with Astro, streaming full tracks from Audius, 30-second previews from Deezer and iTunes, podcast episodes, live radio and YouTube music videos — no accounts, no database, no backend.
+**Free online music.** A small Spotify-style web player built with Astro, streaming full tracks from Audius and Jamendo, podcast episodes, live radio and YouTube music videos — no accounts, no database, no backend.
 
 ![Astro](https://img.shields.io/badge/Astro-7.x-ff5d01?logo=astro&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
@@ -10,13 +10,14 @@
 
 - **Home rows** — play again, trending, videos you watched, podcast series and live radio, each on a single swipeable row so the page stays short.
 - **Trending** — a live selection of trending tracks from Audius when the page loads.
-- **Search** — the magnifier opens a full search page. From Home it queries Audius (full tracks), Deezer and iTunes (previews), Apple Podcasts, Radio Browser and YouTube in parallel, songs first; searching from the Videos page only searches YouTube, and from Podcasts or Radio only that source.
+- **Search** — the magnifier opens a full search page. From Home it queries Audius and Jamendo (full tracks), Apple Podcasts, Radio Browser and YouTube in parallel, songs first; searching from the Videos page only searches YouTube, and from Podcasts or Radio only that source.
 - **Videos** — a dedicated Videos page with its own YouTube picks: *Videos for you* is built from what you play and search for on this device, falling back to YouTube's most-popular music videos. It keeps video-only *Play again* and *Mostly played* rows, shows the latest watched videos on Home, lists *More from channel* in the detail panel, and remembers the last list for six hours so repeat visits skip the API.
 - **Artist view** — clicking any card expands a full-width panel with the artwork, and lists everything else available from that artist.
 - **Playback** — a persistent player bar with play/pause, previous/next, seek and volume, plus the queue built from the list you are looking at.
 - **Video playback** — music videos play in an embedded YouTube player instead of the audio element, with a video-first full-screen view (video on top, title underneath, expand/PiP/fullscreen in the header). The now playing card previews the actual muted video with a fullscreen button, and the panel beside it shows the full description, view/like/comment counts and a **Watch on YouTube** link.
 - **Full-screen now playing** — the expand button next to Like (or the player cover) opens the artwork on a blurred copy of itself, with the source details the API returns: genre, mood, tags, release date, play/favorite/repost counts, album, episode length, station language, codec, bitrate and more, plus a link back to the original source.
 - **Share and embed** — every song, podcast episode and radio station has a share button in the detail panel, the player bar and the full-screen view. It produces a direct link (`/?t=…`) plus a Spotify-style `<iframe>` embed served from `/embed/`, with artwork, a blurred cover backdrop, play/pause, a seek bar and a backlink to echoX. The share sheet includes a **live, playable preview** of that embed plus the track title/description, and social previews use the `og.png` card.
+- **Playlists** — group songs, podcasts, radio and videos into playlists that live in `localStorage`, shown as cards inside Library; a search field inside each playlist adds tracks, and playing from a playlist labels the player with the playlist name.
 - **Library on this device** — play again, most played, recently played history and liked songs, all stored in `localStorage`.
 - **Resume after reload** — the last played song, its queue and its position are restored, and playback continues automatically when the browser allows it.
 - **Live radio and podcasts** — community radio stations (HTTPS streams only) and podcast series with full episodes; the radio page loads 20 stations at a time with a *Load more* button, and tapping the now-playing radio title lists the other stations from the same country.
@@ -61,6 +62,16 @@ npm run preview  # serve ./dist locally
 
 The build output is fully static, so it can be dropped on GitHub Pages, Netlify, Vercel, Cloudflare Pages or any static host. No backend or database is needed.
 
+### Jamendo full tracks
+
+Jamendo supplies the second catalogue of full-length songs beyond Audius. Add your public client id to `.env` (or the build environment):
+
+```bash
+PUBLIC_JAMENDO_CLIENT_ID=your-client-id
+```
+
+Create an app in the [Jamendo developer portal](https://devportal.jamendo.com) and copy its **Client ID**. Only read methods are used, so the id appears in request URLs; the **Client Secret** is not needed and must never be put in a `PUBLIC_` variable, because everything prefixed like that ships in the client bundle. Without a client id the Jamendo row is hidden and Audius still covers full tracks.
+
 ### YouTube videos
 
 Everything except the Videos page works with no configuration. To enable videos, add a YouTube Data API v3 key to `.env` (or the build environment):
@@ -101,7 +112,7 @@ The service worker caches the app shell, icons and hashed build assets, so the i
 │   ├── layouts/
 │   │   └── Layout.astro     # <head>, meta tags, install banner
 │   ├── lib/
-│   │   └── api.ts           # Audius, Deezer, iTunes, podcast, radio and YouTube clients
+│   │   └── api.ts           # Audius, Jamendo, podcast, radio and YouTube clients
 │   ├── pages/
 │   │   ├── index.astro      # the player app and the Videos page
 │   │   ├── about.astro      # standalone about page
@@ -118,12 +129,11 @@ The service worker caches the app shell, icons and hashed build assets, so the i
 
 ## How it works
 
-Astro renders the shell and `src/scripts/app.ts` runs on the client. All network calls happen in the browser, which is possible because the APIs either send permissive CORS headers or, in Deezer's case, support JSONP — that is why the site needs no server.
+Astro renders the shell and `src/scripts/app.ts` runs on the client. All network calls happen in the browser, which is possible because every API used here sends permissive CORS headers — that is why the site needs no server.
 
 - **Audius** — `GET /v1/tracks/trending`, `/v1/tracks/search`, `/v1/users/handle/{handle}/tracks` and `/v1/tracks/{id}/stream`. The stream endpoint redirects to an MP3 and supports HTTP range requests, so seeking works and the whole song plays. The required `app_name=echox` query parameter identifies the app.
-- **Deezer** — `GET https://api.deezer.com/search?q=…` and `/artist/{id}/top`, read through JSONP because the public API does not send CORS headers. Playback uses the 30-second `preview` URL and the global catalogue covers Western, Indonesian, Japanese and other releases.
-- **iTunes Search API** — `GET /search?term=…&entity=song` and `/lookup?id={artistId}&entity=song`. Only `previewUrl` clips (usually 30 seconds) are playable.
-- **Apple Podcasts** — the same iTunes endpoint with `media=podcast&entity=podcastEpisode`; `previewUrl` serves the episode audio and `/lookup?id={collectionId}&entity=podcastEpisode` lists more episodes from a show.
+- **Jamendo** — `GET /v3.0/tracks/?client_id=…&search=…`, `/v3.0/tracks/?order=popularity_month` and `/v3.0/artists/tracks/?id={artistId}`. The API sends permissive CORS headers and returns a full-length `audio` URL (192 kbps MP3), artwork and Creative Commons licence info. Songs play in full, not as previews.
+- **Apple Podcasts** — the iTunes Search endpoint with `media=podcast&entity=podcastEpisode`; `previewUrl` serves the episode audio and `/lookup?id={collectionId}&entity=podcastEpisode` lists more episodes from a show.
 - **Radio Browser** — `GET https://de1.api.radio-browser.info/json/stations/search`, a free, keyless, community-run directory. Only HTTPS streams are offered, and audio plays straight from the broadcaster.
 - **YouTube** — `GET /youtube/v3/search?part=snippet&type=video&videoEmbeddable=true` for picks based on your recent plays and searches, `GET /youtube/v3/videos?chart=mostPopular&videoCategoryId=10` as the one-unit fallback, and `GET /youtube/v3/videos?part=snippet,statistics&id=…` for the description and counters shown beside the video. Playback uses the IFrame Player API from `https://www.youtube.com/iframe_api`; only videos that allow embedding are offered.
 
@@ -131,11 +141,12 @@ Tracks are never downloaded or re-hosted; audio is played from the original sour
 
 ### Shared links and embeds
 
-Share links use `/?t=<source>:<id>` and embeds use `/embed/?t=<source>:<id>`. A single resolver, `getTrackById()`, turns that id back into a playable `Track` in a fresh tab: Audius and Deezer are looked up by their own ids, iTunes songs through the Search API, radio stations through Radio Browser, and podcast episodes carry a compact base64 payload in the id (Apple cannot resolve an episode by its own id, and a show lookup only returns its latest ~200 episodes). The embed page is plain HTML, CSS and one small script, so it can be dropped into any site with `<iframe src="…/embed/?t=…">`; no API key is involved.
+Share links use `/?t=<source>:<id>` and embeds use `/embed/?t=<source>:<id>`. A single resolver, `getTrackById()`, turns that id back into a playable `Track` in a fresh tab: Audius and Jamendo are looked up by their own ids, radio stations through Radio Browser, and podcast episodes carry a compact base64 payload in the id (Apple cannot resolve an episode by its own id, and a show lookup only returns its latest ~200 episodes). The embed page is plain HTML, CSS and one small script, so it can be dropped into any site with `<iframe src="…/embed/?t=…">`; no API key is involved.
 
 ## Notes and limitations
 
-- Deezer and iTunes tracks are **30-second previews only**; full songs come from Audius and podcast episodes come from Apple's podcast feeds. Radio is live and cannot be seeked.
+- Songs are **full length** from Audius and Jamendo; podcast episodes come from Apple's podcast feeds. Radio is live and cannot be seeked.
+- Jamendo stream URLs carry a temporary token, so a Jamendo track saved in a playlist can stop playing once that token ages out. Open the track from search again to refresh it.
 - Videos need `PUBLIC_YOUTUBE_API_KEY`; without it the Videos page stays empty and explains why. Playback also depends on the uploader allowing embeds and on the daily YouTube quota.
 - Availability and audio quality depend entirely on the upstream APIs and can change without notice.
 - The Audius free tier allows roughly 10 requests/second and 500k requests/month per app name — fine for personal use, but don't hammer it.

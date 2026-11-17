@@ -8,7 +8,7 @@ interface Props {
 
 const {
   title = 'echoX — Free Music, Music Videos, Radio & Podcasts',
-  description = 'echoX is a free browser player for full songs from Audius, 30-second previews from Deezer and iTunes, YouTube music videos, podcast episodes and live radio. No account, no ads, no downloads — everything streams from its official source.',
+  description = 'echoX is a free browser player for full songs from Audius and Jamendo, YouTube music videos, podcast episodes and live radio. No account, no ads, no downloads — everything streams from its official source.',
 } = Astro.props;
 const site = Astro.site;
 const canonical = site ? new URL(Astro.url.pathname, site).toString() : Astro.url.pathname;
