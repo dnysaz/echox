@@ -85,12 +85,12 @@ img { display: block; }
   height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 9px;
+  border-radius: 50%;
   background: var(--accent);
-  color: #1c0d00;
+  color: #fff;
   flex: none;
 }
-.brand-mark svg { width: 16px; height: 16px; }
+.brand-mark svg { width: 22px; height: 22px; }
 
 .brand-x { color: var(--accent); }
 

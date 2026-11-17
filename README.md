@@ -1,4 +1,4 @@
-# echoX
+# Wavetify
 
 **Free online music.** A small Spotify-style web player built with Astro, streaming full tracks from Audius and Jamendo, podcast episodes, live radio and YouTube music videos — no accounts, no database, no backend.
 
@@ -16,13 +16,13 @@
 - **Playback** — a persistent player bar with play/pause, previous/next, seek and volume, plus the queue built from the list you are looking at.
 - **Video playback** — music videos play in an embedded YouTube player instead of the audio element, with a video-first full-screen view (video on top, title underneath, expand/PiP/fullscreen in the header). The now playing card previews the actual muted video with a fullscreen button, and the panel beside it shows the full description, view/like/comment counts and a **Watch on YouTube** link.
 - **Full-screen now playing** — the expand button next to Like (or the player cover) opens the artwork on a blurred copy of itself, with the source details the API returns: genre, mood, tags, release date, play/favorite/repost counts, album, episode length, station language, codec, bitrate and more, plus a link back to the original source.
-- **Share and embed** — every song, podcast episode and radio station has a share button in the detail panel, the player bar and the full-screen view. It produces a direct link (`/?t=…`) plus a Spotify-style `<iframe>` embed served from `/embed/`, with artwork, a blurred cover backdrop, play/pause, a seek bar and a backlink to echoX. The share sheet includes a **live, playable preview** of that embed plus the track title/description, and social previews use the `og.png` card.
+- **Share and embed** — every song, podcast episode and radio station has a share button in the detail panel, the player bar and the full-screen view. It produces a direct link (`/?t=…`) plus a Spotify-style `<iframe>` embed served from `/embed/`, with artwork, a blurred cover backdrop, play/pause, a seek bar and a backlink to Wavetify. The share sheet includes a **live, playable preview** of that embed plus the track title/description, and social previews use the `og.png` card.
 - **Playlists** — group songs, podcasts, radio and videos into playlists that live in `localStorage`, shown as cards inside Library; a search field inside each playlist adds tracks, and playing from a playlist labels the player with the playlist name.
 - **Library on this device** — play again, most played, recently played history and liked songs, all stored in `localStorage`.
 - **Resume after reload** — the last played song, its queue and its position are restored, and playback continues automatically when the browser allows it.
 - **Live radio and podcasts** — community radio stations (HTTPS streams only) and podcast series with full episodes; the radio page loads 20 stations at a time with a *Load more* button, and tapping the now-playing radio title lists the other stations from the same country.
-- **Mobile first** — compact top bar with the echoX title and a magnifier that opens a full-width search field, bottom navigation, safe-area aware player above the nav, two-column grid and a scrollable detail panel on phones.
-- **Cover fallback** — tracks without artwork (or with broken artwork URLs) get a branded echoX placeholder instead of a broken image.
+- **Mobile first** — compact top bar with the Wavetify title and a magnifier that opens a full-width search field, bottom navigation, safe-area aware player above the nav, two-column grid and a scrollable detail panel on phones.
+- **Cover fallback** — tracks without artwork (or with broken artwork URLs) get a branded Wavetify placeholder instead of a broken image.
 - **Installable PWA** — web app manifest, maskable home-screen icons and a service worker that caches the app shell, so the player can be installed and opened without browser chrome.
 
 ## Tech stack
@@ -34,7 +34,7 @@
 | Styling   | Plain CSS with custom properties in `src/styles/global.css`    |
 | Audio     | HTML5 `<audio>`, streamed directly from the source APIs        |
 | Video     | [YouTube IFrame Player API](https://developers.google.com/youtube/iframe_api_reference) with the YouTube Data API v3 |
-| Icons     | Inline SVG + a hand-made `public/favicon.svg` play-button mark |
+| Icons     | Inline SVG + a hand-made `public/favicon.svg` round orange W mark |
 
 No UI framework, no CSS library, no client-side router — four TypeScript modules (API client, player logic, PWA glue and the embed player), one stylesheet and two shared Astro components. The only external service that needs a key is YouTube.
 
@@ -84,11 +84,11 @@ Create the key in [Google Cloud Console](https://console.cloud.google.com/apis/c
 
 YouTube gives 10,000 quota units per day; a search costs 100 and a video lookup costs 1. The app spends at most two searches per Videos refresh, caches the resulting list for six hours and caches per-video descriptions/counters for 24 hours.
 
-For share previews (`og:image`) to point at the absolute production URL, set `PUBLIC_SITE_URL` at build time, e.g. `PUBLIC_SITE_URL=https://echox.example npm run build`. Without it the relative `/og.png` is used.
+For share previews (`og:image`) to point at the absolute production URL, set `PUBLIC_SITE_URL` at build time, e.g. `PUBLIC_SITE_URL=https://wavetify.example npm run build`. Without it the relative `/og.png` is used.
 
 ### Install as an app
 
-Chrome, Edge and Android offer **Install app** (or the in-app banner) and open echoX in a standalone window with the play-button icon. On iOS use Safari's **Share → Add to Home Screen**; the install banner explains that step there.
+Chrome, Edge and Android offer **Install app** (or the in-app banner) and open Wavetify in a standalone window with the round orange W icon. On iOS use Safari's **Share → Add to Home Screen**; the install banner explains that step there.
 
 The service worker caches the app shell, icons and hashed build assets, so the interface opens instantly and survives a reload without a connection. Audio is not cached: tracks, radio and podcasts are streamed from their sources and still need the network. Registration only happens in production builds (`npm run build` then `npm run preview`, or a deployed host), never in `astro dev`.
 
@@ -97,7 +97,7 @@ The service worker caches the app shell, icons and hashed build assets, so the i
 ```text
 /
 ├── public/
-│   ├── favicon.svg          # echoX play-button icon
+│   ├── favicon.svg          # Wavetify round icon
 │   ├── favicon.ico
 │   ├── apple-touch-icon.png
 │   ├── icon-192.png         # PWA icons
@@ -131,7 +131,7 @@ The service worker caches the app shell, icons and hashed build assets, so the i
 
 Astro renders the shell and `src/scripts/app.ts` runs on the client. All network calls happen in the browser, which is possible because every API used here sends permissive CORS headers — that is why the site needs no server.
 
-- **Audius** — `GET /v1/tracks/trending`, `/v1/tracks/search`, `/v1/users/handle/{handle}/tracks` and `/v1/tracks/{id}/stream`. The stream endpoint redirects to an MP3 and supports HTTP range requests, so seeking works and the whole song plays. The required `app_name=echox` query parameter identifies the app.
+- **Audius** — `GET /v1/tracks/trending`, `/v1/tracks/search`, `/v1/users/handle/{handle}/tracks` and `/v1/tracks/{id}/stream`. The stream endpoint redirects to an MP3 and supports HTTP range requests, so seeking works and the whole song plays. The required `app_name=wavetify` query parameter identifies the app.
 - **Jamendo** — `GET /v3.0/tracks/?client_id=…&search=…`, `/v3.0/tracks/?order=popularity_month` and `/v3.0/artists/tracks/?id={artistId}`. The API sends permissive CORS headers and returns a full-length `audio` URL (192 kbps MP3), artwork and Creative Commons licence info. Songs play in full, not as previews.
 - **Apple Podcasts** — the iTunes Search endpoint with `media=podcast&entity=podcastEpisode`; `previewUrl` serves the episode audio and `/lookup?id={collectionId}&entity=podcastEpisode` lists more episodes from a show.
 - **Radio Browser** — `GET https://de1.api.radio-browser.info/json/stations/search`, a free, keyless, community-run directory. Only HTTPS streams are offered, and audio plays straight from the broadcaster.

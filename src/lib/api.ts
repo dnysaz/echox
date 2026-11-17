@@ -1,4 +1,4 @@
-export const APP_NAME = 'echox';
+export const APP_NAME = 'wavetify';
 const AUDIUS = 'https://api.audius.co/v1';
 const YOUTUBE_API_KEY = import.meta.env.PUBLIC_YOUTUBE_API_KEY;
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
@@ -200,7 +200,7 @@ let jsonpCounter = 0;
 
 function getJsonp<T>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
-    const callback = `__echoxJsonp${++jsonpCounter}`;
+    const callback = `__wavetifyJsonp${++jsonpCounter}`;
     const script = document.createElement('script');
     const globalWindow = window as unknown as Record<string, unknown>;
     const cleanup = () => {

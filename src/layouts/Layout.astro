@@ -7,8 +7,8 @@ interface Props {
 }
 
 const {
-  title = 'echoX — Free Music, Music Videos, Radio & Podcasts',
-  description = 'echoX is a free browser player for full songs from Audius and Jamendo, YouTube music videos, podcast episodes and live radio. No account, no ads, no downloads — everything streams from its official source.',
+  title = 'Wavetify — Free Music, Music Videos, Radio & Podcasts',
+  description = 'Wavetify is a free browser player for full songs from Audius and Jamendo, YouTube music videos, podcast episodes and live radio. No account, no ads, no downloads — everything streams from its official source.',
 } = Astro.props;
 const site = Astro.site;
 const canonical = site ? new URL(Astro.url.pathname, site).toString() : Astro.url.pathname;
@@ -29,23 +29,23 @@ const ogImage = site ? new URL('/og.png', site).toString() : '/og.png';
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#08080a" />
-    <meta name="application-name" content="echoX" />
+    <meta name="application-name" content="Wavetify" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="echoX" />
+    <meta name="apple-mobile-web-app-title" content="Wavetify" />
     <meta name="format-detection" content="telephone=no" />
     <meta name="generator" content={Astro.generator} />
     <link rel="canonical" href={canonical} />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="echoX" />
+    <meta property="og:site_name" content="Wavetify" />
     <meta property="og:url" content={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImage} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="echoX — free music, YouTube music videos, radio and podcasts on a blurred cover-art backdrop" />
+    <meta property="og:image:alt" content="Wavetify — free music, YouTube music videos, radio and podcasts on a blurred cover-art backdrop" />
     <meta property="og:locale" content="en_US" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
@@ -56,10 +56,10 @@ const ogImage = site ? new URL('/og.png', site).toString() : '/og.png';
   <body>
     <slot />
 
-    <div class="install-banner" id="install-banner" role="dialog" aria-label="Install echoX" hidden>
+    <div class="install-banner" id="install-banner" role="dialog" aria-label="Install Wavetify" hidden>
       <img class="install-icon" src="/icon-192.png" alt="" width="44" height="44" />
       <div class="install-copy">
-        <strong>Install echoX</strong>
+        <strong>Install Wavetify</strong>
         <span>Full screen, no browser bars, one tap away.</span>
       </div>
       <button class="install-go" id="install-go" type="button">Install</button>

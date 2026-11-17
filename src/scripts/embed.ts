@@ -35,8 +35,8 @@ function render(track: Track) {
   title.textContent = track.title;
   artist.textContent = track.artist;
   desc.textContent = (track.description ?? '').trim();
-  kicker.textContent = `echoX · ${sourceLabel(track)}`;
-  document.title = `${track.title} — echoX`;
+  kicker.textContent = `Wavetify · ${sourceLabel(track)}`;
+  document.title = `${track.title} — Wavetify`;
 
   if (track.artwork) {
     const img = document.createElement('img');
@@ -58,7 +58,7 @@ function render(track: Track) {
 function fail(message: string) {
   error.hidden = false;
   error.textContent = message;
-  kicker.textContent = 'echoX';
+  kicker.textContent = 'Wavetify';
   title.textContent = 'Not available';
   artist.textContent = '';
 }

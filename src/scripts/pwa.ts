@@ -3,7 +3,17 @@ interface InstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-const DISMISS_KEY = 'echox:install-dismissed';
+const DISMISS_KEY = 'wavetify:install-dismissed';
+
+// Carry the pre-rename dismissal over so the banner does not reappear.
+try {
+  const legacy = localStorage.getItem('echox:install-dismissed');
+  if (legacy !== null && localStorage.getItem(DISMISS_KEY) === null) {
+    localStorage.setItem(DISMISS_KEY, legacy);
+  }
+} catch {
+  /* private mode or storage disabled */
+}
 
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||

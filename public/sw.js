@@ -1,5 +1,5 @@
 // Bump this whenever the shell URLs or the caching rules change.
-const VERSION = 'echox-v3';
+const VERSION = 'wavetify-v4';
 const SHELL = [
   '/',
   '/embed/',

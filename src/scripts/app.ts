@@ -23,15 +23,35 @@ import {
   type YouTubeVideoDetails,
 } from '../lib/api';
 
-const LIKED_KEY = 'echox:liked';
-const HISTORY_KEY = 'echox:history';
-const STATS_KEY = 'echox:stats';
-const PLAYING_KEY = 'echox:playing';
-const VOLUME_KEY = 'echox:volume';
-const SEARCHES_KEY = 'echox:searches';
-const VIDEO_CACHE_KEY = 'echox:youtube-videos';
-const VIDEO_DETAILS_KEY = 'echox:youtube-details';
-const PLAYLISTS_KEY = 'echox:playlists';
+const LIKED_KEY = 'wavetify:liked';
+const HISTORY_KEY = 'wavetify:history';
+const STATS_KEY = 'wavetify:stats';
+const PLAYING_KEY = 'wavetify:playing';
+const VOLUME_KEY = 'wavetify:volume';
+const SEARCHES_KEY = 'wavetify:searches';
+const VIDEO_CACHE_KEY = 'wavetify:youtube-videos';
+const VIDEO_DETAILS_KEY = 'wavetify:youtube-details';
+const PLAYLISTS_KEY = 'wavetify:playlists';
+
+// The app was called echoX before the rename; carry saved state across so
+// nobody loses their likes, playlists, history or last played track.
+function migrateLegacyStorage() {
+  const legacyPrefix = 'echox:';
+  try {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(legacyPrefix))
+      .forEach((key) => {
+        const next = `wavetify:${key.slice(legacyPrefix.length)}`;
+        const value = localStorage.getItem(key);
+        if (value !== null && localStorage.getItem(next) === null) localStorage.setItem(next, value);
+        localStorage.removeItem(key);
+      });
+  } catch {
+    /* private mode or storage disabled */
+  }
+}
+
+migrateLegacyStorage();
 const HISTORY_MAX = 40;
 const STATS_MAX = 200;
 const LIKED_MAX = 200;
@@ -2065,7 +2085,7 @@ function applySearchScope() {
           : 'Type at least 2 characters to search full tracks from Audius and Jamendo, podcast episodes, live radio and videos.';
 }
 
-// On mobile the top bar shows the EchoX title plus a magnifier; the search
+// On mobile the top bar shows the Wavetify wordmark plus a magnifier; the search
 // field only takes over the bar once the magnifier (or Search tab) is tapped.
 function setSearchOpen(open: boolean) {
   topbar.classList.toggle('searching', open);
@@ -2078,18 +2098,18 @@ function setView(view: View, nav?: string) {
   currentView = view;
   document.title =
     view === 'terms'
-      ? 'Terms & Conditions | echoX'
+      ? 'Terms & Conditions | Wavetify'
       : view === 'about'
-        ? 'About echoX — Free Music, Videos, Radio & Podcasts'
+        ? 'About Wavetify — Free Music, Videos, Radio & Podcasts'
         : view === 'podcasts'
-          ? 'Podcasts | echoX'
+          ? 'Podcasts | Wavetify'
           : view === 'radio'
-            ? 'Live radio | echoX'
+            ? 'Live radio | Wavetify'
             : view === 'videos'
-              ? 'Videos | echoX'
+              ? 'Videos | Wavetify'
               : view === 'playlists'
-                ? 'Playlists | echoX'
-                : 'echoX — Free Music, Music Videos, Radio & Podcasts';
+                ? 'Playlists | Wavetify'
+                : 'Wavetify — Free Music, Music Videos, Radio & Podcasts';
   views.forEach((name) => {
     el<HTMLElement>(`view-${name}`).hidden = name !== view;
   });
