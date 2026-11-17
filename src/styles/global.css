@@ -382,6 +382,9 @@ input[type="search"]::-webkit-search-results-decoration {
 .card {
   display: flex;
   flex-direction: column;
+  /* Buttons default to non-stretch children in some browsers, which lets a
+     nowrap subtitle grow past the card. Force the text blocks to fill it. */
+  align-items: stretch;
   min-width: 0;
   gap: 10px;
   padding: 12px;
@@ -466,6 +469,9 @@ input[type="search"]::-webkit-search-results-decoration {
 .text-back:hover { color: var(--accent); }
 
 .card-title {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   font-size: 13.5px;
   font-weight: 700;
   line-height: 1.35;
@@ -477,6 +483,9 @@ input[type="search"]::-webkit-search-results-decoration {
   overflow-wrap: anywhere;
 }
 .card-artist {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin-top: -4px;
   font-size: 12px;
   color: var(--muted);
