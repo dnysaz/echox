@@ -56,6 +56,10 @@ img { display: block; }
   z-index: 1;
   align-self: start;
   height: calc(100vh - var(--player));
+  /* On short laptop screens the nav is taller than the viewport: let the
+     sidebar scroll on its own instead of cutting off the items at the bottom. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -494,16 +498,32 @@ input[type="search"]::-webkit-search-results-decoration {
   text-overflow: ellipsis;
 }
 
-/* The "View more" card that closes every Home row. */
+/* The "View more" card that closes every Home row. The dashed panel covers
+   the whole card so the arrow sits in its true centre, while the labels stay
+   pinned to the bottom edge. */
+.card-more {
+  position: relative;
+  justify-content: flex-end;
+  min-height: 180px;
+}
 .card-more .card-art {
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
   display: grid;
   place-items: center;
   border: 1px dashed #3a3a46;
+  border-radius: inherit;
   background:
     radial-gradient(120% 120% at 20% 0%, rgba(255, 122, 0, .22), transparent 60%),
     var(--panel);
 }
 .card-more .card-art::after { display: none; }
+.card-more .card-title,
+.card-more .card-artist {
+  position: relative;
+  z-index: 1;
+}
 .card-more .card-title { color: var(--accent); }
 .card-more-icon {
   width: 46px;
@@ -1966,13 +1986,23 @@ body.np-open { overflow: hidden; }
 .np.is-pip .np-ambient { display: none; }
 .np.is-pip .np-top {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 5;
   display: flex;
-  padding: 0;
+  align-items: center;
+  justify-content: flex-end;
+  height: 36px;
+  padding: 0 6px;
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(180deg, rgba(8, 8, 10, .72), rgba(8, 8, 10, 0));
   pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
+.np.is-dragging .np-top { cursor: grabbing; }
 .np.is-pip .np-top > :not(.np-video-tools) { display: none; }
 .np.is-pip .np-video-tools { display: flex; }
 .np.is-pip .np-sheet { background: transparent; }

@@ -138,6 +138,7 @@ const npVideoExpand = el<HTMLButtonElement>('np-video-expand');
 const npVideoFs = el<HTMLButtonElement>('np-video-fs');
 const npVideoPip = el<HTMLButtonElement>('np-video-pip');
 const npBody = document.querySelector<HTMLElement>('.np-body') as HTMLElement;
+const npTop = document.querySelector<HTMLElement>('.np-top') as HTMLElement;
 const npSeek = el<HTMLInputElement>('np-seek');
 const npCur = el<HTMLSpanElement>('np-cur');
 const npDur = el<HTMLSpanElement>('np-dur');
@@ -1384,10 +1385,34 @@ function setExpanded(expanded: boolean) {
 }
 
 let pipMode = false;
+// Last position the floating window was dragged to, kept between PiP sessions.
+let pipPosition: { left: number; top: number } | null = null;
+let pipDrag: { pointerId: number; offsetX: number; offsetY: number } | null = null;
+
+/** Keep the floating window fully on screen, however the viewport changes. */
+function clampPip(left: number, top: number): { left: number; top: number } {
+  const rect = np.getBoundingClientRect();
+  const margin = 8;
+  const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+  const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+  return {
+    left: Math.min(Math.max(margin, left), maxLeft),
+    top: Math.min(Math.max(margin, top), maxTop),
+  };
+}
+
+function placePip(left: number, top: number) {
+  const pos = clampPip(left, top);
+  pipPosition = pos;
+  np.style.left = `${pos.left}px`;
+  np.style.top = `${pos.top}px`;
+  np.style.right = 'auto';
+  np.style.bottom = 'auto';
+}
 
 // Picture in picture for a cross-origin YouTube iframe: the browser PiP API
 // cannot take over the player, so now playing itself shrinks into a floating
-// video window while the rest of the page stays usable.
+// video window that can be dragged anywhere in the page.
 function setPip(active: boolean) {
   pipMode = active;
   np.classList.toggle('is-pip', active);
@@ -1395,7 +1420,54 @@ function setPip(active: boolean) {
   npVideoPip.setAttribute('aria-label', active ? 'Exit picture in picture' : 'Picture in picture');
   np.setAttribute('aria-modal', active ? 'false' : 'true');
   document.body.classList.toggle('np-open', !active && !np.hidden);
+
+  if (active) {
+    // Measure after the class lands so the default sits above the player bar.
+    const rect = np.getBoundingClientRect();
+    const fallbackLeft = window.innerWidth - rect.width - 16;
+    const fallbackTop = window.innerHeight - rect.height - 104;
+    placePip(pipPosition?.left ?? fallbackLeft, pipPosition?.top ?? fallbackTop);
+  } else {
+    pipDrag = null;
+    np.classList.remove('is-dragging');
+    for (const prop of ['left', 'top', 'right', 'bottom']) np.style.removeProperty(prop);
+  }
 }
+
+/* Drag the floating window by its control strip, not by the YouTube iframe. */
+npTop.addEventListener('pointerdown', (event) => {
+  if (!pipMode || (event.target as HTMLElement).closest('button')) return;
+  const rect = np.getBoundingClientRect();
+  pipDrag = {
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+  };
+  np.classList.add('is-dragging');
+  npTop.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+npTop.addEventListener('pointermove', (event) => {
+  if (!pipDrag || event.pointerId !== pipDrag.pointerId) return;
+  placePip(event.clientX - pipDrag.offsetX, event.clientY - pipDrag.offsetY);
+});
+const endPipDrag = (event: PointerEvent) => {
+  if (!pipDrag || event.pointerId !== pipDrag.pointerId) return;
+  pipDrag = null;
+  np.classList.remove('is-dragging');
+  try {
+    npTop.releasePointerCapture(event.pointerId);
+  } catch {
+    /* the capture may already be gone */
+  }
+};
+npTop.addEventListener('pointerup', endPipDrag);
+npTop.addEventListener('pointercancel', endPipDrag);
+
+window.addEventListener('resize', () => {
+  if (!pipMode || !pipPosition) return;
+  placePip(pipPosition.left, pipPosition.top);
+});
 
 npVideoExpand.addEventListener('click', () => {
   if (pipMode) setPip(false);
